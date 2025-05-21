@@ -477,3 +477,75 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 }); 
+
+// === static/js/main.js  (2025-05-21) =======================================
+
+// tiny DOM helpers ----------------------------------------------------------
+const $  = (sel, ctx = document) => ctx.querySelector(sel);
+const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
+const csrf = () => $('meta[name="csrf-token"]')?.content;
+
+// ---------------------------------------------------------------------------
+// 1.  SINGLE-CARD ACTIONS  (star / trash icons)
+// ---------------------------------------------------------------------------
+window.toggleFavorite = async (id) => {
+    const res = await fetch('/feedback', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
+        body: JSON.stringify({ outfit_id: id, rating: 1 })
+    });
+    if (!res.ok) return alert('Failed to update favorite');
+
+    const btn = $(`[data-outfit-id="${id}"] .favorite-btn`);
+    btn?.classList.toggle('bg-yellow-400');
+    btn?.classList.toggle('text-yellow-600');
+    btn?.classList.toggle('bg-white');
+    btn?.classList.toggle('text-gray-600');
+};
+
+// confirmDialog = false → skip the prompt (used for bulk delete)
+window.deleteOutfit = async (id, confirmDialog = true) => {
+    if (confirmDialog && !confirm('Delete this outfit forever?')) return;
+
+    const res = await fetch(`/delete-outfit/${id}`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() }
+    });
+    if (!res.ok) return alert('Failed to delete outfit');
+
+    $(`[data-outfit-id="${id}"]`)?.remove();
+    if ($$('[data-outfit-id]').length === 0) location.reload();
+};
+
+// ---------------------------------------------------------------------------
+// 2.  TOOLBAR BUTTONS  (select / deselect / favorite-selected / delete-selected)
+// ---------------------------------------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+    const selAll = $('#select-all');
+    const desAll = $('#deselect-all');
+    const favSel = $('#favorite-selected');
+    const delSel = $('#delete-selected');
+
+    const boxes = () => $$('input.outfit-checkbox');
+
+    selAll?.addEventListener('click', () => boxes().forEach(cb => cb.checked = true));
+    desAll?.addEventListener('click', () => boxes().forEach(cb => cb.checked = false));
+
+    favSel?.addEventListener('click', async () => {
+        const ids = boxes().filter(cb => cb.checked).map(cb => cb.dataset.outfitId);
+        if (!ids.length) return alert('Select at least one outfit first');
+
+        for (const id of ids) await window.toggleFavorite(id);
+        boxes().forEach(cb => cb.checked = false);
+    });
+
+    delSel?.addEventListener('click', async () => {
+        const ids = boxes().filter(cb => cb.checked).map(cb => cb.dataset.outfitId);
+        if (!ids.length) return alert('Select at least one outfit first');
+        if (!confirm(`Delete ${ids.length} outfit(s)? This can’t be undone.`)) return;
+
+        for (const id of ids) await window.deleteOutfit(id, /* confirmDialog */ false);
+    });
+});

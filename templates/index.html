@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>AI Outfit Finder</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="bg-gray-100">
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="flex justify-between items-center py-4">
+                <div class="text-xl font-bold text-gray-800">AI Outfit Finder</div>
+                <div class="space-x-4">
+                    {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('index') }}" class="text-gray-600 hover:text-gray-800">Home</a>
+                        <a href="{{ url_for('my_outfits') }}" class="text-gray-600 hover:text-gray-800">My Outfits</a>
+                        <a href="#" class="text-gray-600 hover:text-gray-800">Profile</a>
+                        <a href="{{ url_for('logout') }}" class="text-gray-600 hover:text-gray-800">Logout</a>
+                    {% else %}
+                        <a href="{{ url_for('login') }}" class="text-gray-600 hover:text-gray-800">Login</a>
+                        <a href="{{ url_for('register') }}" class="text-gray-600 hover:text-gray-800">Register</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-4 py-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Upload Section -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold mb-4">Upload Your Clothes</h2>
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                    <input type="file" id="clothing-upload" class="hidden" accept="image/*" multiple>
+                    <label for="clothing-upload" class="cursor-pointer">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <p class="mt-1 text-sm text-gray-600">Click to select clothing images</p>
+                    </label>
+                </div>
+                <div id="upload-preview" class="mt-4 hidden">
+                    <h3 class="text-lg font-semibold mb-2">Selected Images:</h3>
+                    <div id="preview-container" class="grid grid-cols-2 gap-4"></div>
+                    <button id="confirm-upload" class="mt-4 w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Upload Selected Images
+                    </button>
+                </div>
+            </div>
+
+            <!-- Preferences Section -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold mb-4">Your Preferences</h2>
+                <form id="preferences-form" class="space-y-4">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Height (cm)</label>
+                        <input type="number" name="height" value="{{ current_user.height if current_user.height else '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Weight (kg)</label>
+                        <input type="number" name="weight" value="{{ current_user.weight if current_user.weight else '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Style Preferences</label>
+                        <select name="styles" multiple class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="casual" {% if current_user.preferences and 'casual' in current_user.preferences.get('styles', []) %}selected{% endif %}>Casual</option>
+                            <option value="formal" {% if current_user.preferences and 'formal' in current_user.preferences.get('styles', []) %}selected{% endif %}>Formal</option>
+                            <option value="business" {% if current_user.preferences and 'business' in current_user.preferences.get('styles', []) %}selected{% endif %}>Business</option>
+                            <option value="sporty" {% if current_user.preferences and 'sporty' in current_user.preferences.get('styles', []) %}selected{% endif %}>Sporty</option>
+                            <option value="bohemian" {% if current_user.preferences and 'bohemian' in current_user.preferences.get('styles', []) %}selected{% endif %}>Bohemian</option>
+                        </select>
+                    </div>
+                    <div>
+                        <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Save Preferences
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Recommendations Section -->
+        <div class="mt-8 bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold mb-4">Recommended Outfits</h2>
+            <div id="recommendations" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Outfit cards will be dynamically added here -->
+            </div>
+        </div>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html> 

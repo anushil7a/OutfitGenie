@@ -12,6 +12,7 @@ import json
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import base64
+from openai import OpenAI
 
 # Load environment variables
 load_dotenv()
@@ -32,7 +33,8 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 # Configure OpenAI
-openai.api_key = os.getenv('OPENAI_API_KEY')
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+print("OpenAI API Key configured:", "Yes" if os.getenv('OPENAI_API_KEY') else "No")
 
 # Custom JSON encoder for datetime objects
 class CustomJSONEncoder(json.JSONEncoder):
@@ -232,9 +234,23 @@ def save_preferences():
     data = request.json
     current_user.height = data.get('height')
     current_user.weight = data.get('weight')
-    current_user.preferences = {
-        'styles': data.get('styles', [])
-    }
+    
+    # Get selected styles
+    styles = data.get('styles', [])
+    
+    # If there's a custom style, add it to the list and store it separately
+    other_style = data.get('other_style')
+    if other_style and other_style.strip():
+        styles.append('other')  # Add 'other' to the styles list
+        current_user.preferences = {
+            'styles': styles,
+            'custom_style': other_style.strip()
+        }
+    else:
+        current_user.preferences = {
+            'styles': styles
+        }
+    
     db.session.commit()
     return jsonify({'message': 'Preferences saved successfully'})
 
@@ -290,7 +306,7 @@ def get_weather_data():
 def analyze_clothing_image(image_data):
     try:
         # Call OpenAI Vision API to analyze the image
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4-vision-preview",
             messages=[
                 {
@@ -315,6 +331,8 @@ def analyze_clothing_image(image_data):
         return response.choices[0].message.content
     except Exception as e:
         print(f"Error analyzing image: {str(e)}")
+        print(f"Error type: {type(e)}")
+        print(f"Error details: {e.__dict__ if hasattr(e, '__dict__') else 'No details available'}")
         return "Error analyzing image. Please try again."
 
 def generate_outfit_recommendations(occasion, weather, user_preferences):

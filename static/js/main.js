@@ -1,21 +1,15 @@
 // Delete outfit function - defined globally
 window.deleteOutfit = async (outfitId) => {
-    console.log('Attempting to delete outfit:', outfitId);
-    
     if (!confirm('Are you sure you want to delete this outfit? This action cannot be undone.')) {
-        console.log('Delete cancelled by user');
         return;
     }
 
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-        console.log('CSRF Token:', csrfToken ? 'Found' : 'Not found');
-        
         if (!csrfToken) {
             throw new Error('CSRF token not found');
         }
 
-        console.log('Sending delete request to:', `/delete-outfit/${outfitId}`);
         const response = await fetch(`/delete-outfit/${outfitId}`, {
             method: 'POST',
             headers: {
@@ -24,35 +18,22 @@ window.deleteOutfit = async (outfitId) => {
             }
         });
 
-        console.log('Response status:', response.status);
-        const data = await response.json();
-        console.log('Response data:', data);
-
         if (response.ok) {
-            console.log('Delete successful, removing outfit card');
-            // Remove the outfit card from the DOM
             const outfitCard = document.querySelector(`[data-outfit-id="${outfitId}"]`);
-            console.log('Found outfit card:', outfitCard ? 'Yes' : 'No');
-            
             if (outfitCard) {
                 outfitCard.remove();
-                // If no outfits left, show the empty state
+                // If no outfits left, reload the page
                 const remainingOutfits = document.querySelectorAll('[data-outfit-id]');
-                console.log('Remaining outfits:', remainingOutfits.length);
                 if (remainingOutfits.length === 0) {
-                    console.log('No outfits left, reloading page');
                     window.location.reload();
                 }
-            } else {
-                console.log('Outfit card not found, reloading page');
-                window.location.reload();
             }
         } else {
-            throw new Error(data.error || 'Failed to delete outfit');
+            throw new Error('Failed to delete outfit');
         }
     } catch (error) {
         console.error('Error deleting outfit:', error);
-        alert(error.message || 'Error deleting outfit. Please try again.');
+        alert('Error deleting outfit. Please try again.');
     }
 };
 
@@ -63,13 +44,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const uploadPreview = document.getElementById('upload-preview');
     const previewContainer = document.getElementById('preview-container');
     const confirmUpload = document.getElementById('confirm-upload');
+    const selectAllBtn = document.getElementById('select-all');
+    const deselectAllBtn = document.getElementById('deselect-all');
+    const favoriteSelectedBtn = document.getElementById('favorite-selected');
+    const deleteSelectedBtn = document.getElementById('delete-selected');
+    const outfitCheckboxes = document.querySelectorAll('.outfit-checkbox');
+    const selectedCount = document.getElementById('selected-count');
 
     let selectedFiles = [];
+    let favoriteFiles = new Set();
+
+    // Update selected count
+    function updateSelectedCount() {
+        const count = selectedFiles.filter(file => !file.removed).length;
+        selectedCount.textContent = count;
+        confirmUpload.disabled = count === 0;
+    }
 
     // Handle clothing image selection
     clothingUpload.addEventListener('change', (e) => {
         const newFiles = Array.from(e.target.files);
-        selectedFiles = [...selectedFiles, ...newFiles];
+        selectedFiles = [...selectedFiles, ...newFiles.map(file => ({ file, removed: false }))];
         
         if (selectedFiles.length > 0) {
             uploadPreview.classList.remove('hidden');
@@ -79,27 +74,79 @@ document.addEventListener('DOMContentLoaded', () => {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const preview = document.createElement('div');
-                    preview.className = 'relative';
+                    preview.className = 'relative group';
                     preview.dataset.filename = file.name;
                     preview.innerHTML = `
-                        <img src="${e.target.result}" alt="Preview" class="w-full h-48 object-cover rounded-lg">
-                        <button class="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600" onclick="removeSelectedFile('${file.name}')">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
+                        <div class="relative">
+                            <img src="${e.target.result}" alt="Preview" class="w-full h-48 object-cover rounded-lg">
+                            <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-lg">
+                                <div class="absolute top-2 right-2 flex space-x-2">
+                                    <button class="favorite-btn bg-white text-gray-600 rounded-full p-1 hover:bg-yellow-400 hover:text-yellow-600 transition-colors duration-200" onclick="toggleFavorite('${file.name}')">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                                        </svg>
+                                    </button>
+                                    <button class="delete-btn bg-white text-gray-600 rounded-full p-1 hover:bg-red-500 hover:text-white transition-colors duration-200" onclick="removeSelectedFile('${file.name}')">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     `;
                     previewContainer.appendChild(preview);
                 };
                 reader.readAsDataURL(file);
             });
+            updateSelectedCount();
         }
     });
 
+    // Toggle favorite status for a single outfit
+    window.toggleFavorite = async (outfitId) => {
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            if (!csrfToken) {
+                throw new Error('CSRF token not found');
+            }
+
+            const response = await fetch('/feedback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    outfit_id: outfitId,
+                    rating: 1
+                })
+            });
+
+            if (response.ok) {
+                const favoriteBtn = document.querySelector(`[data-outfit-id="${outfitId}"] .favorite-btn`);
+                if (favoriteBtn) {
+                    favoriteBtn.classList.toggle('bg-yellow-400');
+                    favoriteBtn.classList.toggle('text-yellow-600');
+                    favoriteBtn.classList.toggle('bg-white');
+                    favoriteBtn.classList.toggle('text-gray-600');
+                }
+            } else {
+                throw new Error('Failed to update favorite status');
+            }
+        } catch (error) {
+            console.error('Error toggling favorite:', error);
+            alert('Error updating favorite status. Please try again.');
+        }
+    };
+
     // Remove selected file
     window.removeSelectedFile = (fileName) => {
-        // Remove from selectedFiles array
-        selectedFiles = selectedFiles.filter(file => file.name !== fileName);
+        // Mark file as removed
+        const fileIndex = selectedFiles.findIndex(f => f.file.name === fileName);
+        if (fileIndex !== -1) {
+            selectedFiles[fileIndex].removed = true;
+        }
         
         // Remove the preview element
         const preview = previewContainer.querySelector(`[data-filename="${fileName}"]`);
@@ -108,25 +155,50 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         // Hide preview container if no files left
-        if (selectedFiles.length === 0) {
+        if (selectedFiles.every(f => f.removed)) {
             uploadPreview.classList.add('hidden');
         }
+        
+        updateSelectedCount();
     };
+
+    // Select all files
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', () => {
+            outfitCheckboxes.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+        });
+    }
+
+    // Deselect all files
+    if (deselectAllBtn) {
+        deselectAllBtn.addEventListener('click', () => {
+            outfitCheckboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+        });
+    }
 
     // Handle confirm upload
     if (confirmUpload) {
         confirmUpload.addEventListener('click', async () => {
-            if (selectedFiles.length === 0) {
+            const filesToUpload = selectedFiles.filter(f => !f.removed).map(f => f.file);
+            
+            if (filesToUpload.length === 0) {
                 alert('Please select at least one image to upload');
                 return;
             }
 
             const formData = new FormData();
-            for (let file of selectedFiles) {
+            for (let file of filesToUpload) {
                 formData.append('image', file);
             }
 
             try {
+                confirmUpload.disabled = true;
+                confirmUpload.textContent = 'Uploading...';
+
                 const response = await fetch('/upload', {
                     method: 'POST',
                     headers: {
@@ -135,23 +207,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: formData
                 });
 
+                const data = await response.json();
+                
                 if (response.ok) {
-                    const data = await response.json();
                     alert(data.message);
                     // Reset the form
                     clothingUpload.value = '';
                     selectedFiles = [];
+                    favoriteFiles.clear();
                     uploadPreview.classList.add('hidden');
                     previewContainer.innerHTML = '';
                     // Reload the page to show new uploads
                     window.location.reload();
                 } else {
-                    const error = await response.json();
-                    alert(error.error || 'Upload failed');
+                    throw new Error(data.error || 'Upload failed');
                 }
             } catch (error) {
                 console.error('Error uploading images:', error);
-                alert('Error uploading images. Please try again.');
+                alert(error.message || 'Error uploading images. Please try again.');
+            } finally {
+                confirmUpload.disabled = false;
+                confirmUpload.textContent = 'Upload Selected Images';
             }
         });
     }
@@ -299,4 +375,105 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error saving outfit:', error);
         }
     };
+
+    // Bulk selection functions for My Outfits page
+    if (favoriteSelectedBtn) {
+        favoriteSelectedBtn.addEventListener('click', async () => {
+            const selectedOutfits = Array.from(outfitCheckboxes)
+                .filter(checkbox => checkbox.checked)
+                .map(checkbox => checkbox.dataset.outfitId);
+
+            if (selectedOutfits.length === 0) {
+                alert('Please select at least one outfit to favorite');
+                return;
+            }
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+                if (!csrfToken) {
+                    throw new Error('CSRF token not found');
+                }
+
+                for (const outfitId of selectedOutfits) {
+                    const response = await fetch('/feedback', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({
+                            outfit_id: outfitId,
+                            rating: 1
+                        })
+                    });
+
+                    if (response.ok) {
+                        const favoriteBtn = document.querySelector(`[data-outfit-id="${outfitId}"] .favorite-btn`);
+                        if (favoriteBtn) {
+                            favoriteBtn.classList.add('bg-yellow-400', 'text-yellow-600');
+                            favoriteBtn.classList.remove('bg-white', 'text-gray-600');
+                        }
+                    }
+                }
+
+                // Deselect all checkboxes after operation
+                outfitCheckboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+            } catch (error) {
+                console.error('Error favoriting outfits:', error);
+                alert('Error favoriting outfits. Please try again.');
+            }
+        });
+    }
+
+    if (deleteSelectedBtn) {
+        deleteSelectedBtn.addEventListener('click', async () => {
+            const selectedOutfits = Array.from(outfitCheckboxes)
+                .filter(checkbox => checkbox.checked)
+                .map(checkbox => checkbox.dataset.outfitId);
+
+            if (selectedOutfits.length === 0) {
+                alert('Please select at least one outfit to delete');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to delete ${selectedOutfits.length} outfit(s)? This action cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+                if (!csrfToken) {
+                    throw new Error('CSRF token not found');
+                }
+
+                for (const outfitId of selectedOutfits) {
+                    const response = await fetch(`/delete-outfit/${outfitId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        }
+                    });
+
+                    if (response.ok) {
+                        const outfitCard = document.querySelector(`[data-outfit-id="${outfitId}"]`);
+                        if (outfitCard) {
+                            outfitCard.remove();
+                        }
+                    }
+                }
+
+                // If no outfits left, reload the page
+                const remainingOutfits = document.querySelectorAll('[data-outfit-id]');
+                if (remainingOutfits.length === 0) {
+                    window.location.reload();
+                }
+            } catch (error) {
+                console.error('Error deleting outfits:', error);
+                alert('Error deleting outfits. Please try again.');
+            }
+        });
+    }
 }); 

@@ -24,6 +24,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = os.path.join('static', 'uploads')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
+# Create uploads directory if it doesn't exist
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
 # Initialize extensions
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
@@ -133,45 +136,64 @@ def upload_clothing():
 
     uploaded_files = []
     for file in files:
-        if file:
-            filename = secure_filename(file.filename)
-            # Create user-specific upload directory
-            user_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], str(current_user.id))
-            os.makedirs(user_upload_dir, exist_ok=True)
-            
-            # Save file
-            filepath = os.path.join(user_upload_dir, filename)
-            file.save(filepath)
-            
-            # Process image with OpenAI Vision API
+        if file and file.filename:
             try:
-                with open(filepath, 'rb') as img_file:
-                    analysis = analyze_clothing_image(img_file.read())
-                    
-                    # Create new outfit record
+                filename = secure_filename(file.filename)
+                # Create user-specific upload directory
+                user_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], str(current_user.id))
+                os.makedirs(user_upload_dir, exist_ok=True)
+                
+                # Save file
+                filepath = os.path.join(user_upload_dir, filename)
+                file.save(filepath)
+                
+                # Process image with OpenAI Vision API
+                try:
+                    with open(filepath, 'rb') as img_file:
+                        analysis = analyze_clothing_image(img_file.read())
+                        
+                        # Create new outfit record
+                        outfit = Outfit(
+                            user_id=current_user.id,
+                            image_url=url_for('static', filename=f'uploads/{current_user.id}/{filename}'),
+                            analysis=analysis,
+                            created_at=datetime.utcnow()
+                        )
+                        db.session.add(outfit)
+                        uploaded_files.append({
+                            'message': 'Image uploaded successfully',
+                            'analysis': analysis,
+                            'image_url': outfit.image_url
+                        })
+                except Exception as e:
+                    print(f"Error processing image: {str(e)}")
+                    # If there's an error processing the image, still save the file
                     outfit = Outfit(
                         user_id=current_user.id,
                         image_url=url_for('static', filename=f'uploads/{current_user.id}/{filename}'),
-                        analysis=analysis,
                         created_at=datetime.utcnow()
                     )
                     db.session.add(outfit)
                     uploaded_files.append({
-                        'message': 'Image uploaded successfully',
-                        'analysis': analysis,
+                        'message': 'Image uploaded successfully (processing failed)',
                         'image_url': outfit.image_url
                     })
             except Exception as e:
-                return jsonify({'error': str(e)}), 500
+                print(f"Error saving file: {str(e)}")
+                return jsonify({'error': f'Error saving file: {str(e)}'}), 500
     
     if uploaded_files:
-        db.session.commit()
-        return jsonify({
-            'message': f'Successfully uploaded {len(uploaded_files)} images',
-            'files': uploaded_files
-        })
+        try:
+            db.session.commit()
+            return jsonify({
+                'message': f'Successfully uploaded {len(uploaded_files)} images',
+                'files': uploaded_files
+            })
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': f'Database error: {str(e)}'}), 500
     
-    return jsonify({'error': 'Invalid file'}), 400
+    return jsonify({'error': 'No valid files uploaded'}), 400
 
 @app.route('/recommend', methods=['POST'])
 @login_required

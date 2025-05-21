@@ -349,6 +349,83 @@ def generate_outfit_recommendations(occasion, weather, user_preferences):
         ]
     }
 
+@app.route('/chat')
+@login_required
+def chat():
+    return render_template('chat.html')
+
+@app.route('/chat', methods=['POST'])
+@login_required
+def chat_message():
+    data = request.json
+    message = data.get('message', '').strip()
+    
+    if not message:
+        return jsonify({'error': 'Message is required'}), 400
+
+    try:
+        # Get user's uploaded outfits
+        user_outfits = Outfit.query.filter_by(user_id=current_user.id).all()
+        outfits_info = []
+        for outfit in user_outfits:
+            outfits_info.append({
+                'image_url': outfit.image_url,
+                'analysis': outfit.analysis,
+                'occasion': outfit.occasion,
+                'weather': outfit.weather
+            })
+
+        # Create a prompt for the AI
+        prompt = f"""As an AI fashion assistant, help the user with their outfit question: "{message}"
+
+User's uploaded clothes:
+{json.dumps(outfits_info, indent=2)}
+
+User's preferences:
+{json.dumps(current_user.preferences, indent=2)}
+
+Please provide a VERY SHORT response (1-2 sentences maximum) that:
+1. Directly answers their question
+2. References specific items from their uploaded clothes
+3. Includes the image_url of the recommended items
+
+Format your response as JSON with two fields:
+1. "response": your short answer
+2. "image_urls": list of image URLs for the recommended items
+
+Response:"""
+
+        print("Sending request to OpenAI...")
+        # Get AI response using the new client
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a concise fashion assistant. Keep responses to 1-2 sentences maximum. Always include image URLs in your response."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=150
+        )
+
+        ai_response = response.choices[0].message.content
+        print("Received response from OpenAI")
+
+        try:
+            # Try to parse the response as JSON
+            response_data = json.loads(ai_response)
+            return jsonify(response_data)
+        except json.JSONDecodeError:
+            # If parsing fails, return the raw response
+            return jsonify({
+                'response': ai_response,
+                'image_urls': []
+            })
+
+    except Exception as e:
+        print(f"Error in chat_message: {str(e)}")
+        print(f"Error type: {type(e)}")
+        print(f"Error details: {e.__dict__ if hasattr(e, '__dict__') else 'No details available'}")
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()

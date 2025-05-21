@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect
+from flask_cors import CORS
 import os
 from dotenv import load_dotenv
 import openai
@@ -18,6 +19,8 @@ from openai import OpenAI
 load_dotenv()
 
 app = Flask(__name__)
+# Configure CORS to be more permissive during development
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///outfit_finder.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -83,6 +86,7 @@ def load_user(user_id):
 # Routes
 @app.route('/')
 def index():
+    print("Accessing index route")  # Debug print
     return render_template('index.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -447,6 +451,11 @@ Response:"""
         print(f"Error type: {type(e)}")
         print(f"Error details: {e.__dict__ if hasattr(e, '__dict__') else 'No details available'}")
         return jsonify({'error': str(e)}), 500
+
+@app.after_request
+def after_request(response):
+    print(f"Response headers: {response.headers}")  # Debug print
+    return response
 
 if __name__ == '__main__':
     with app.app_context():

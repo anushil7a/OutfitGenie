@@ -59,8 +59,10 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(128))
     height = db.Column(db.Float)
     weight = db.Column(db.Float)
+    gender = db.Column(db.String(20))
     preferences = db.Column(db.JSON)
     outfits = db.relationship('Outfit', backref='user', lazy=True)
+    chats = db.relationship('Chat', backref='user', lazy=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -78,6 +80,20 @@ class Outfit(db.Model):
     weather = db.Column(db.JSON)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     rating = db.Column(db.Integer)
+
+class Chat(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    messages = db.Column(db.JSON)  # List of messages with sender and text
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'preview': self.messages[0]['text'][:50] + '...' if self.messages else 'New Chat',
+            'timestamp': self.created_at.isoformat()
+        }
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -260,6 +276,7 @@ def save_preferences():
     data = request.json
     current_user.height = data.get('height')
     current_user.weight = data.get('weight')
+    current_user.gender = data.get('gender')
     
     # Get selected styles
     styles = data.get('styles', [])
@@ -267,7 +284,8 @@ def save_preferences():
     # If there's a custom style, add it to the list and store it separately
     other_style = data.get('other_style')
     if other_style and other_style.strip():
-        styles.append('other')  # Add 'other' to the styles list
+        if 'other' not in styles:
+            styles.append('other')  # Add 'other' to the styles list if not already present
         current_user.preferences = {
             'styles': styles,
             'custom_style': other_style.strip()
@@ -380,11 +398,30 @@ def generate_outfit_recommendations(occasion, weather, user_preferences):
 def chat():
     return render_template('chat.html')
 
+@app.route('/chat-history')
+@login_required
+def get_chat_history():
+    chats = Chat.query.filter_by(user_id=current_user.id).order_by(Chat.updated_at.desc()).all()
+    return jsonify({
+        'chats': [chat.to_dict() for chat in chats]
+    })
+
+@app.route('/chat/<int:chat_id>')
+@login_required
+def get_chat(chat_id):
+    chat = Chat.query.get_or_404(chat_id)
+    if chat.user_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+    return jsonify({
+        'messages': chat.messages
+    })
+
 @app.route('/chat', methods=['POST'])
 @login_required
 def chat_message():
     data = request.json
     message = data.get('message', '').strip()
+    chat_id = data.get('chat_id')  # Get chat_id from request if it exists
     
     if not message:
         return jsonify({'error': 'Message is required'}), 400
@@ -421,8 +458,7 @@ Format your response as JSON with two fields:
 
 Response:"""
 
-        print("Sending request to OpenAI...")
-        # Get AI response using the new client
+        # Get AI response
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -433,11 +469,31 @@ Response:"""
         )
 
         ai_response = response.choices[0].message.content
-        print("Received response from OpenAI")
 
         try:
             # Try to parse the response as JSON
             response_data = json.loads(ai_response)
+            
+            # Get or create chat
+            if chat_id:
+                chat = Chat.query.get(chat_id)
+                if not chat or chat.user_id != current_user.id:
+                    chat = Chat(user_id=current_user.id, messages=[])
+            else:
+                chat = Chat(user_id=current_user.id, messages=[])
+            
+            # Add new messages
+            chat.messages.extend([
+                {'sender': 'You', 'text': message},
+                {'sender': 'AI', 'text': response_data['response']}
+            ])
+            
+            db.session.add(chat)
+            db.session.commit()
+            
+            # Add chat_id to response
+            response_data['chat_id'] = chat.id
+            
             return jsonify(response_data)
         except json.JSONDecodeError:
             # If parsing fails, return the raw response

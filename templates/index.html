@@ -77,14 +77,59 @@
                         <input type="number" name="weight" value="{{ current_user.weight if current_user.weight else '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Style Preferences</label>
-                        <select name="styles" multiple class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="casual" {% if current_user.preferences and 'casual' in current_user.preferences.get('styles', []) %}selected{% endif %}>Casual</option>
-                            <option value="formal" {% if current_user.preferences and 'formal' in current_user.preferences.get('styles', []) %}selected{% endif %}>Formal</option>
-                            <option value="business" {% if current_user.preferences and 'business' in current_user.preferences.get('styles', []) %}selected{% endif %}>Business</option>
-                            <option value="sporty" {% if current_user.preferences and 'sporty' in current_user.preferences.get('styles', []) %}selected{% endif %}>Sporty</option>
-                            <option value="bohemian" {% if current_user.preferences and 'bohemian' in current_user.preferences.get('styles', []) %}selected{% endif %}>Bohemian</option>
+                        <label class="block text-sm font-medium text-gray-700">Gender</label>
+                        <select name="gender" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">Select gender</option>
+                            <option value="male" {% if current_user.gender == 'male' %}selected{% endif %}>Male</option>
+                            <option value="female" {% if current_user.gender == 'female' %}selected{% endif %}>Female</option>
+                            <option value="non-binary" {% if current_user.gender == 'non-binary' %}selected{% endif %}>Non-binary</option>
+                            <option value="prefer-not-to-say" {% if current_user.gender == 'prefer-not-to-say' %}selected{% endif %}>Prefer not to say</option>
                         </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Style Preferences</label>
+                        <div class="mt-2 space-y-2">
+                            <div class="flex items-center">
+                                <input type="checkbox" name="styles" value="casual" id="style-casual" 
+                                    {% if current_user.preferences and 'casual' in current_user.preferences.get('styles', []) %}checked{% endif %}
+                                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                <label for="style-casual" class="ml-2 block text-sm text-gray-700">Casual</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="checkbox" name="styles" value="formal" id="style-formal"
+                                    {% if current_user.preferences and 'formal' in current_user.preferences.get('styles', []) %}checked{% endif %}
+                                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                <label for="style-formal" class="ml-2 block text-sm text-gray-700">Formal</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="checkbox" name="styles" value="business" id="style-business"
+                                    {% if current_user.preferences and 'business' in current_user.preferences.get('styles', []) %}checked{% endif %}
+                                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                <label for="style-business" class="ml-2 block text-sm text-gray-700">Business</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="checkbox" name="styles" value="sporty" id="style-sporty"
+                                    {% if current_user.preferences and 'sporty' in current_user.preferences.get('styles', []) %}checked{% endif %}
+                                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                <label for="style-sporty" class="ml-2 block text-sm text-gray-700">Sporty</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="checkbox" name="styles" value="bohemian" id="style-bohemian"
+                                    {% if current_user.preferences and 'bohemian' in current_user.preferences.get('styles', []) %}checked{% endif %}
+                                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                <label for="style-bohemian" class="ml-2 block text-sm text-gray-700">Bohemian</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="checkbox" name="styles" value="other" id="style-other"
+                                    {% if current_user.preferences and 'other' in current_user.preferences.get('styles', []) %}checked{% endif %}
+                                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                <label for="style-other" class="ml-2 block text-sm text-gray-700">Other</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="other-style-container" class="hidden">
+                        <label class="block text-sm font-medium text-gray-700">Custom Style</label>
+                        <input type="text" name="other_style" value="{{ current_user.preferences.get('custom_style', '') if current_user.preferences else '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Enter your custom style">
                     </div>
                     <div>
                         <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>AI Outfit Chat - AI Outfit Finder</title>
+    <title>AI Fashion Assistant - Chat</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
@@ -28,44 +28,30 @@
         </div>
     </nav>
 
-    <main class="max-w-4xl mx-auto px-4 py-8">
-        <div class="bg-white rounded-lg shadow-md overflow-hidden">
-            <!-- Chat Header -->
-            <div class="bg-indigo-600 text-white px-6 py-4">
-                <h2 class="text-xl font-semibold">AI Outfit Assistant</h2>
-                <p class="text-sm text-indigo-200">Ask me about outfit recommendations based on your uploaded clothes!</p>
-            </div>
-
-            <!-- Chat Messages -->
-            <div id="chat-messages" class="h-[600px] overflow-y-auto p-6 space-y-4">
-                <!-- Welcome Message -->
-                <div class="flex items-start space-x-3">
-                    <div class="flex-shrink-0">
-                        <div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white">
-                            AI
-                        </div>
-                    </div>
-                    <div class="flex-1 bg-gray-100 rounded-lg p-4">
-                        <p class="text-gray-800">Hi! I'm your AI Outfit Assistant. I can help you create perfect outfits using your uploaded clothes. You can ask me things like:</p>
-                        <ul class="list-disc list-inside mt-2 text-gray-700">
-                            <li>"What should I wear for a casual dinner?"</li>
-                            <li>"Can you suggest an outfit for a job interview?"</li>
-                            <li>"What goes well with my blue shirt?"</li>
-                            <li>"Help me create a summer outfit"</li>
-                        </ul>
-                    </div>
+    <main class="max-w-6xl mx-auto px-4 py-8">
+        <div class="flex gap-6">
+            <!-- Chat History Sidebar -->
+            <div class="w-1/4 bg-white rounded-lg shadow-md p-4">
+                <h2 class="text-xl font-bold mb-4">Chat History</h2>
+                <div id="chat-history" class="space-y-2">
+                    <!-- Chat history items will be added here -->
                 </div>
             </div>
 
-            <!-- Chat Input -->
-            <form id="chat-form" class="border-t border-gray-200 p-4">
-                <div class="flex space-x-4">
-                    <input type="text" id="message-input" class="flex-1 rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Ask about outfit recommendations...">
-                    <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <!-- Main Chat Area -->
+            <div class="flex-1 bg-white rounded-lg shadow-md p-6">
+                <div id="chat-messages" class="space-y-4 mb-4 h-[500px] overflow-y-auto">
+                    <!-- Messages will be added here -->
+                </div>
+                <form id="chat-form" class="flex gap-2">
+                    <input type="text" id="message-input" placeholder="Ask about your outfits..." 
+                           class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <button type="submit" 
+                            class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                         Send
                     </button>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
     </main>
 

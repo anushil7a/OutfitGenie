@@ -237,10 +237,19 @@ document.addEventListener('DOMContentLoaded', () => {
         preferencesForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(preferencesForm);
+            
+            // Get all checked styles
+            const styles = Array.from(document.querySelectorAll('input[name="styles"]:checked')).map(cb => cb.value);
+            
+            // Get custom style if "other" is selected
+            const otherStyle = document.querySelector('input[name="other_style"]').value;
+            
             const preferences = {
                 height: formData.get('height'),
                 weight: formData.get('weight'),
-                styles: Array.from(formData.getAll('styles'))
+                gender: formData.get('gender'),
+                styles: styles,
+                other_style: otherStyle
             };
 
             try {
@@ -476,6 +485,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // Handle style preferences
+    const styleOtherCheckbox = document.querySelector('input[name="styles"][value="other"]');
+    const otherStyleContainer = document.getElementById('other-style-container');
+
+    if (styleOtherCheckbox && otherStyleContainer) {
+        // Check if "other" is checked on page load
+        if (styleOtherCheckbox.checked) {
+            otherStyleContainer.classList.remove('hidden');
+        }
+
+        // Show/hide custom style input when "other" is checked/unchecked
+        styleOtherCheckbox.addEventListener('change', function() {
+            otherStyleContainer.classList.toggle('hidden', !this.checked);
+        });
+    }
 }); 
 
 // === static/js/main.js  (2025-05-21) =======================================
@@ -544,7 +569,7 @@ document.addEventListener('DOMContentLoaded', () => {
     delSel?.addEventListener('click', async () => {
         const ids = boxes().filter(cb => cb.checked).map(cb => cb.dataset.outfitId);
         if (!ids.length) return alert('Select at least one outfit first');
-        if (!confirm(`Delete ${ids.length} outfit(s)? This can’t be undone.`)) return;
+        if (!confirm(`Delete ${ids.length} outfit(s)? This can't be undone.`)) return;
 
         for (const id of ids) await window.deleteOutfit(id, /* confirmDialog */ false);
     });

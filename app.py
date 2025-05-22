@@ -351,14 +351,30 @@ def analyze_clothing_image(image_data):
     try:
         # Call OpenAI Vision API to analyze the image
         response = client.chat.completions.create(
-            model="gpt-4-vision-preview",
+            model="gpt-4o-mini",
             messages=[
                 {
                     "role": "user",
                     "content": [
                         {
                             "type": "text",
-                            "text": "Analyze this clothing item. Describe its type, color, style, and any notable features. Also suggest what occasions it would be suitable for."
+                            "text": """Analyze this clothing item and provide a natural, flowing description in the following format:
+
+For each clothing item (if multiple), describe it in a natural paragraph that includes:
+- Type and style (e.g., "loose-fitting crewneck t-shirt", "straight-fit cargo pants")
+- Color and material (1/2 words)
+- Key features and design elements
+- overall vibe (1/2 words)
+
+Format your response EXACTLY like this example (including the line breaks and bold headers):
+
+Top: [Description]
+
+Bottom: [Description]
+
+Shoes/Accessories: [Description]
+
+Keep descriptions concise but detailed enough for AI outfit matching. Focus on the overall look and feel while including specific details about style, fit, and features."""
                         },
                         {
                             "type": "image_url",
@@ -372,7 +388,14 @@ def analyze_clothing_image(image_data):
             max_tokens=300
         )
         
-        return response.choices[0].message.content
+        # Format the response with proper spacing
+        formatted_response = response.choices[0].message.content.strip()
+        # Ensure double line breaks between sections
+        formatted_response = formatted_response.replace('\n\n', '\n').replace('\n', '\n\n')
+        # Remove any extra spaces
+        formatted_response = '\n'.join(line.strip() for line in formatted_response.split('\n'))
+        
+        return formatted_response
     except Exception as e:
         print(f"Error analyzing image: {str(e)}")
         print(f"Error type: {type(e)}")

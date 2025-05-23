@@ -360,21 +360,19 @@ def analyze_clothing_image(image_data):
                             "type": "text",
                             "text": """Analyze this clothing item and provide a natural, flowing description in the following format:
 
-For each clothing item (if multiple), describe it in a natural paragraph that includes:
+For each clothing item that is visible in the image, describe it in a natural paragraph that includes:
 - Type and style (e.g., "loose-fitting crewneck t-shirt", "straight-fit cargo pants")
 - Color and material (1/2 words)
 - Key features and design elements
 - overall vibe (1/2 words)
 
-Format your response EXACTLY like this example (including the line breaks and bold headers):
+Format your response EXACTLY like this example (including the line breaks), but ONLY include sections that are visible in the image:
 
-Top: [Description]
+<strong>Top:</strong> [Description]<br>
+<strong>Bottom:</strong> [Description]<br>
+<strong>Shoes/Accessories:</strong> [Description]
 
-Bottom: [Description]
-
-Shoes/Accessories: [Description]
-
-Keep descriptions concise but detailed enough for AI outfit matching. Focus on the overall look and feel while including specific details about style, fit, and features."""
+Keep descriptions concise but detailed enough for AI outfit matching. Focus on the overall look and feel while including specific details about style, fit, and features. ONLY describe items that are clearly visible in the image."""
                         },
                         {
                             "type": "image_url",
@@ -388,14 +386,22 @@ Keep descriptions concise but detailed enough for AI outfit matching. Focus on t
             max_tokens=300
         )
         
-        # Format the response with proper spacing
-        formatted_response = response.choices[0].message.content.strip()
-        # Ensure double line breaks between sections
-        formatted_response = formatted_response.replace('\n\n', '\n').replace('\n', '\n\n')
-        # Remove any extra spaces
-        formatted_response = '\n'.join(line.strip() for line in formatted_response.split('\n'))
+        # Get the response content
+        content = response.choices[0].message.content.strip()
         
-        return formatted_response
+        # Format the headers in bold and add proper line breaks
+        sections = ['Top:', 'Bottom:', 'Shoes/Accessories:']
+        formatted_content = content
+        
+        for section in sections:
+            if section in formatted_content:
+                # Replace the section header with a bold version
+                formatted_content = formatted_content.replace(section, f"<strong>{section}</strong>")
+                # Add a single line break after the section if it's not the last one
+                if section != sections[-1]:
+                    formatted_content = formatted_content.replace(f"<strong>{section}</strong>", f"<strong>{section}</strong><br>")
+        
+        return formatted_content
     except Exception as e:
         print(f"Error analyzing image: {str(e)}")
         print(f"Error type: {type(e)}")

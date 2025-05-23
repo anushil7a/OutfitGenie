@@ -71,7 +71,7 @@
                                 </div>
                             </div>
                             {% if outfit.analysis %}
-                                <p class="mt-2 text-sm text-gray-600">{{ outfit.analysis }}</p>
+                                <p class="mt-2 text-sm text-gray-600 whitespace-pre-line">{{ outfit.analysis | safe }}</p>
                             {% endif %}
                         </div>
                     {% endfor %}

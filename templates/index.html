@@ -13,16 +13,18 @@
         <div class="max-w-6xl mx-auto px-4">
             <div class="flex justify-between items-center py-4">
                 <div class="text-xl font-bold text-gray-800">AI Outfit Finder</div>
-                <div class="space-x-4">
-                    {% if current_user.is_authenticated %}
-                        <a href="{{ url_for('index') }}" class="text-indigo-600 font-semibold">Home</a>
-                        <a href="{{ url_for('my_outfits') }}" class="text-gray-600 hover:text-gray-800">My Outfits</a>
-                        <a href="{{ url_for('chat') }}" class="text-gray-600 hover:text-gray-800">Chat</a>
-                        <a href="{{ url_for('logout') }}" class="text-gray-600 hover:text-gray-800">Logout</a>
-                    {% else %}
-                        <a href="{{ url_for('login') }}" class="text-gray-600 hover:text-gray-800">Login</a>
-                        <a href="{{ url_for('register') }}" class="text-gray-600 hover:text-gray-800">Register</a>
-                    {% endif %}
+                <div class="flex items-center space-x-6">
+                    <div class="space-x-4">
+                        {% if current_user.is_authenticated %}
+                            <a href="{{ url_for('index') }}" class="text-indigo-600 font-semibold">Home</a>
+                            <a href="{{ url_for('my_outfits') }}" class="text-gray-600 hover:text-gray-800">My Outfits</a>
+                            <a href="{{ url_for('chat') }}" class="text-gray-600 hover:text-gray-800">Chat</a>
+                            <a href="{{ url_for('logout') }}" class="text-gray-600 hover:text-gray-800">Logout</a>
+                        {% else %}
+                            <a href="{{ url_for('login') }}" class="text-gray-600 hover:text-gray-800">Login</a>
+                            <a href="{{ url_for('register') }}" class="text-gray-600 hover:text-gray-800">Register</a>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -131,12 +133,69 @@
                         <label class="block text-sm font-medium text-gray-700">Custom Style</label>
                         <input type="text" name="other_style" value="{{ current_user.preferences.get('custom_style', '') if current_user.preferences else '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Enter your custom style">
                     </div>
+
+                    <!-- Location Input -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Your Location</label>
+                        <div class="mt-1 flex space-x-2">
+                            <input type="text" id="location-input" value="{{ current_location if current_location else '' }}" 
+                                   class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                   placeholder="Enter your city (e.g., London, New York)">
+                            <button type="button" onclick="updateLocation()" 
+                                    class="inline-flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                Update
+                            </button>
+                        </div>
+                        <p class="mt-1 text-sm text-gray-500">
+                            {% if current_location %}
+                            Current location: {{ current_location }}
+                            {% else %}
+                            Enter your city to get weather-based outfit recommendations
+                            {% endif %}
+                        </p>
+                    </div>
+
                     <div>
                         <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                             Save Preferences
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <!-- Weather Section - Moved below preferences -->
+        <div id="weather-section" class="bg-white rounded-lg shadow-md p-6 my-8" {% if not weather %}style="display: none;"{% endif %}>
+            <h2 class="text-2xl font-bold mb-4">Today's Weather</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {% if weather %}
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="flex items-center space-x-4 mb-4">
+                        {% if weather.icon %}
+                        <img src="{{ weather.icon }}" alt="{{ weather.condition }}" class="w-16 h-16">
+                        {% endif %}
+                        <div>
+                            {% if weather.temperature %}
+                            <h3 class="text-xl font-semibold">{{ weather.temperature }}°F</h3>
+                            {% endif %}
+                            {% if weather.description %}
+                            <p class="text-gray-600 capitalize">{{ weather.description }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        {% if weather.feels_like %}
+                        <p><span class="font-medium">Feels like:</span> {{ weather.feels_like }}°F</p>
+                        {% endif %}
+                        {% if weather.humidity %}
+                        <p><span class="font-medium">Humidity:</span> {{ weather.humidity }}%</p>
+                        {% endif %}
+                        {% if weather.wind_speed %}
+                        <p><span class="font-medium">Wind Speed:</span> {{ weather.wind_speed }} mph</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
 
@@ -149,6 +208,72 @@
         </div>
     </main>
 
+    <script>
+        function updateLocation() {
+            const location = document.getElementById('location-input').value;
+            if (!location) {
+                alert('Please enter a location');
+                return;
+            }
+
+            // Show loading state
+            const updateButton = document.querySelector('button[onclick="updateLocation()"]');
+            const originalText = updateButton.textContent;
+            updateButton.textContent = 'Updating...';
+            updateButton.disabled = true;
+
+            fetch('/update-location', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({ location: location })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    console.log('Location updated successfully:', data);
+                    // Update the current location display
+                    const locationText = document.querySelector('.mt-1.text-sm.text-gray-500');
+                    if (locationText) {
+                        locationText.textContent = `Current location: ${location}`;
+                    }
+                    // Show the weather section
+                    const weatherSection = document.getElementById('weather-section');
+                    if (weatherSection) {
+                        weatherSection.style.display = 'block';
+                    }
+                    // Reload the page after a short delay to ensure all data is updated
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    throw new Error(data.error || 'Failed to update location');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error updating location: ' + error.message);
+                // Reset button state
+                updateButton.textContent = originalText;
+                updateButton.disabled = false;
+            });
+        }
+
+        // Add event listener for Enter key in location input
+        document.getElementById('location-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                updateLocation();
+            }
+        });
+    </script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html> 

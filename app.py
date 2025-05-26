@@ -8,12 +8,17 @@ import os
 from dotenv import load_dotenv
 import openai
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import base64
 from openai import OpenAI
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -41,6 +46,10 @@ login_manager.login_view = 'login'
 # Configure OpenAI
 client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 print("OpenAI API Key configured:", "Yes" if os.getenv('OPENAI_API_KEY') else "No")
+
+# Weather API configuration
+WEATHER_API_KEY = os.getenv('WEATHER_API_KEY')
+WEATHER_API_URL = "https://api.openweathermap.org/data/2.5/weather"
 
 # Custom JSON encoder for datetime objects
 class CustomJSONEncoder(json.JSONEncoder):
@@ -102,8 +111,56 @@ def load_user(user_id):
 # Routes
 @app.route('/')
 def index():
-    print("Accessing index route")  # Debug print
-    return render_template('index.html')
+    try:
+        # Get location from session or default to None
+        location = session.get('location')
+        weather_data = session.get('weather_data')
+        weather_timestamp = session.get('weather_timestamp')
+        
+        logger.info(f"[DEBUG] Session data - Location: {location}")
+        logger.info(f"[DEBUG] Session data - Weather data: {weather_data}")
+        logger.info(f"[DEBUG] Session data - Weather timestamp: {weather_timestamp}")
+
+        # If we have a location but no weather data, or weather data is old, fetch new weather
+        if location and (not weather_data or not weather_timestamp or 
+           (datetime.utcnow() - datetime.fromisoformat(weather_timestamp)) > timedelta(minutes=30)):
+            logger.info(f"[WEATHER CACHE MISS] Fetching new weather data for {location}")
+            weather_data = get_weather_data(location)
+            if weather_data:
+                session['weather_data'] = weather_data
+                session['weather_timestamp'] = datetime.utcnow().isoformat()
+                session.modified = True
+                logger.info(f"[DEBUG] Updated session with new weather data: {weather_data}")
+        elif weather_data:
+            logger.info(f"[WEATHER CACHE HIT] Using cached weather data: {weather_data}")
+
+        # Comment out recommendations for now
+        # recommendations = None
+        # if weather_data and current_user.is_authenticated:
+        #     try:
+        #         recommendations = get_weather_recommendations(weather_data, current_user.preferences)
+        #         if not recommendations:
+        #             recommendations = {
+        #                 "outfit": "A comfortable layered outfit suitable for the current weather.",
+        #                 "reasoning": "This outfit is chosen based on the current temperature and conditions.",
+        #                 "items": ["Item 1", "Item 2", "Item 3"]
+        #             }
+        #     except Exception as e:
+        #         logger.error(f"Error getting recommendations: {str(e)}")
+        #         recommendations = {
+        #             "outfit": "A comfortable layered outfit suitable for the current weather.",
+        #             "reasoning": "This outfit is chosen based on the current temperature and conditions.",
+        #             "items": ["Item 1", "Item 2", "Item 3"]
+        #         }
+
+        logger.info(f"[DEBUG] Final weather data being sent to template: {weather_data}")
+        return render_template('index.html',
+                             weather=weather_data,
+                             recommendations=None,  # Set recommendations to None
+                             current_location=location)
+    except Exception as e:
+        logger.error(f"Error in index route: {str(e)}")
+        return render_template('index.html', current_location=location)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -338,14 +395,139 @@ def delete_outfit(outfit_id):
         print(f"Error deleting outfit: {str(e)}")
         return jsonify({'error': f'Failed to delete outfit: {str(e)}'}), 500
 
-def get_weather_data():
-    # Implement weather API integration
-    # This is a placeholder
-    return {
-        'temperature': 20,
-        'condition': 'sunny',
-        'humidity': 60
-    }
+def get_weather_data(location="London"):
+    """Fetch current weather data for the given location."""
+    try:
+        if not WEATHER_API_KEY:
+            logger.error("Weather API key is not set")
+            return None
+            
+        logger.info(f"[WEATHER API CALL] Fetching weather data for {location}")
+        params = {
+            'q': location,
+            'appid': WEATHER_API_KEY,
+            'units': 'imperial'  # Use Fahrenheit
+        }
+        response = requests.get(WEATHER_API_URL, params=params)
+        response.raise_for_status()
+        data = response.json()
+        
+        # Create a dictionary with all required fields
+        weather_data = {
+            'temperature': int(round(data['main']['temp'])),
+            'feels_like': int(round(data['main']['feels_like'])),
+            'condition': str(data['weather'][0]['main']),
+            'description': str(data['weather'][0]['description']),
+            'icon': f"http://openweathermap.org/img/wn/{data['weather'][0]['icon']}@2x.png",
+            'humidity': int(data['main']['humidity']),
+            'wind_speed': int(round(data['wind']['speed'] * 2.237))  # Convert m/s to mph
+        }
+        
+        logger.info(f"[WEATHER DATA] Successfully fetched weather data: {weather_data}")
+        return weather_data
+    except Exception as e:
+        logger.error(f"Error fetching weather data: {str(e)}")
+        return None
+
+def get_weather_recommendations(weather_data, user_preferences=None):
+    """Generate outfit recommendations based on weather and user's uploaded clothes."""
+    try:
+        # Get user's uploaded outfits
+        user_outfits = Outfit.query.filter_by(user_id=current_user.id).all()
+        outfits_info = []
+        for outfit in user_outfits:
+            outfits_info.append({
+                'image_url': outfit.image_url,
+                'analysis': outfit.analysis,
+                'occasion': outfit.occasion,
+                'weather': outfit.weather
+            })
+
+        # Create a prompt for the AI
+        prompt = f"""Based on the current weather conditions and the user's uploaded clothes, recommend the perfect outfit.
+
+Current Weather:
+- Temperature: {weather_data['temperature']}°F
+- Feels like: {weather_data['feels_like']}°F
+- Condition: {weather_data['description']}
+- Humidity: {weather_data['humidity']}%
+- Wind Speed: {weather_data['wind_speed']} mph
+
+User's uploaded clothes:
+{json.dumps(outfits_info, indent=2)}
+
+User's preferences:
+{json.dumps(user_preferences, indent=2) if user_preferences else 'No preferences set'}
+
+Please recommend an outfit using ONLY the clothes the user has uploaded. Format your response as JSON with these fields:
+1. "outfit": A brief description of the recommended outfit
+2. "reasoning": Why this outfit is suitable for the current weather
+3. "items": List of specific items from the user's uploaded clothes that make up this outfit
+
+Response:"""
+
+        # Return placeholder recommendation for now
+        return {
+            "outfit": "A comfortable layered outfit suitable for the current weather.",
+            "reasoning": "This outfit is chosen based on the current temperature and conditions.",
+            "items": ["Item 1", "Item 2", "Item 3"]
+        }
+
+        # Comment out GPT call for now
+        # try:
+        #     response = client.chat.completions.create(
+        #         model="gpt-4o-mini",
+        #         messages=[
+        #             {"role": "system", "content": "You are a fashion assistant that recommends outfits based on weather conditions and available clothes."},
+        #             {"role": "user", "content": prompt}
+        #         ],
+        #         max_tokens=300
+        #     )
+        #     return json.loads(response.choices[0].message.content)
+        # except Exception as e:
+        #     logger.error(f"Error with GPT call: {str(e)}")
+        #     return None
+
+    except Exception as e:
+        logger.error(f"Error generating weather recommendations: {str(e)}")
+        return None
+
+@app.route('/update-location', methods=['POST'])
+def update_location():
+    try:
+        data = request.json
+        location = data.get('location')
+        if not location:
+            logger.error("[DEBUG] No location provided in request")
+            return jsonify({'error': 'Location is required'}), 400
+        
+        logger.info(f"[DEBUG] Updating location to: {location}")
+        
+        # Fetch weather data first
+        weather_data = get_weather_data(location)
+        if not weather_data:
+            logger.error(f"[DEBUG] Failed to get weather data for {location}")
+            return jsonify({'error': 'Failed to get weather data for this location'}), 400
+            
+        # Update session data
+        session['location'] = location
+        session['weather_data'] = weather_data
+        session['weather_timestamp'] = datetime.utcnow().isoformat()
+        
+        # Force session to be saved
+        session.modified = True
+        
+        logger.info(f"[DEBUG] Successfully updated session with location: {location}")
+        logger.info(f"[DEBUG] Weather data cached: {weather_data}")
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Location updated successfully',
+            'weather': weather_data
+        })
+    except Exception as e:
+        logger.error(f"Error updating location: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 def analyze_clothing_image(image_data):
     try:

@@ -633,6 +633,8 @@ def chat_message():
     data = request.json
     message = data.get('message', '').strip()
     chat_id = data.get('chat_id')  # Get chat_id from request if it exists
+    wardrobe_only = data.get('wardrobe_only', False)  # Get wardrobe_only 
+    print(f"wardrobe_only: {wardrobe_only}")
     
     if not message:
         return jsonify({'error': 'Message is required'}), 400
@@ -649,14 +651,21 @@ def chat_message():
                 'weather': outfit.weather
             })
 
-        # Create a prompt for the AI
-        prompt = f"""As an AI fashion assistant, help the user with their outfit question: "{message}"
+        # Create a prompt for the AI based on the mode
+        print(f"wardrobe_only: {wardrobe_only}")
+        if wardrobe_only:
+            prompt = f"""As an AI fashion assistant, help the user with their outfit question: "{message}"
 
 User's uploaded clothes:
 {json.dumps(outfits_info, indent=2)}
 
-User's preferences:
+User's preferences and measurements:
 {json.dumps(current_user.preferences, indent=2)}
+Height: {current_user.height}
+Weight: {current_user.weight}
+Gender: {current_user.gender}
+
+IMPORTANT: Only recommend outfits using the clothes the user has already uploaded. Do not suggest items they don't own.
 
 Please provide a VERY SHORT response (1-2 sentences maximum) that:
 1. Directly answers their question
@@ -668,10 +677,35 @@ Format your response as JSON with two fields:
 2. "image_urls": list of image URLs for the recommended items
 
 Response:"""
+        else:
+            prompt = f"""As an AI fashion assistant, help the user with their outfit question: "{message}"
+
+User's uploaded clothes:
+{json.dumps(outfits_info, indent=2)}
+
+User's preferences and measurements:
+{json.dumps(current_user.preferences, indent=2)}
+Height: {current_user.height}
+Weight: {current_user.weight}
+Gender: {current_user.gender}
+
+You can recommend both items the user owns and items they don't own yet. When suggesting items they don't own, clearly indicate this in your response.
+
+Please provide a VERY SHORT response (1-2 sentences maximum) that:
+1. Directly answers their question
+2. References specific items from their uploaded clothes (if applicable)
+3. Suggests additional items they don't own (if relevant)
+4. Includes the image_url of any recommended items they own
+
+Format your response as JSON with two fields:
+1. "response": your short answer
+2. "image_urls": list of image URLs for the recommended items they own
+
+Response:"""
 
         # Get AI response
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are a concise fashion assistant. Keep responses to 1-2 sentences maximum. Always include image URLs in your response."},
                 {"role": "user", "content": prompt}

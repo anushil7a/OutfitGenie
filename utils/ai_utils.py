@@ -22,7 +22,8 @@ def analyze_clothing_image(image_data):
 
         # Call OpenAI Vision API
         response = openai.ChatCompletion.create(
-            model="gpt-4-vision-preview",
+            # model="gpt-4-vision-preview",
+            model="gpt-4o-mini",
             messages=[
                 {
                     "role": "user",
@@ -76,7 +77,7 @@ def generate_outfit_recommendations(user_preferences, weather_data, occasion):
         """
 
         response = openai.ChatCompletion.create(
-            model="gpt-4",
+            model="gpt-4o-mini",
             messages=[
                 {
                     "role": "system",
@@ -121,7 +122,7 @@ def get_weather_recommendations(weather_data):
         """
 
         response = openai.ChatCompletion.create(
-            model="gpt-4",
+            model="gpt-4o-mini",
             messages=[
                 {
                     "role": "system",
@@ -164,7 +165,7 @@ def process_user_feedback(outfit_id, rating, user_preferences):
         """
 
         response = openai.ChatCompletion.create(
-            model="gpt-4",
+            model="gpt-4o-mini",
             messages=[
                 {
                     "role": "system",

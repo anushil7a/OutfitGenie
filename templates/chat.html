@@ -43,6 +43,16 @@
                 <div id="chat-messages" class="space-y-4 mb-4 h-[500px] overflow-y-auto">
                     <!-- Messages will be added here -->
                 </div>
+                <!-- Enhanced toggle switch -->
+                <div class="flex items-center justify-end mb-4 bg-gray-50 p-3 rounded-lg">
+                    <div class="flex items-center space-x-3">
+                        <span id="mode-label" class="text-sm font-medium text-gray-700">Recommend from all clothes</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="recommendation-mode" class="sr-only peer">
+                            <div class="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                    </div>
+                </div>
                 <form id="chat-form" class="flex gap-2">
                     <input type="text" id="message-input" placeholder="Ask about your outfits..." 
                            class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">

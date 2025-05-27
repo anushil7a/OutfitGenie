@@ -3,7 +3,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const messageInput = document.getElementById('message-input');
     const chatMessages = document.getElementById('chat-messages');
     const chatHistory = document.getElementById('chat-history');
+    const recommendationMode = document.getElementById('recommendation-mode');
+    const modeLabel = document.getElementById('mode-label');
     let currentChatId = null;
+
+    // Update mode label based on toggle state
+    function updateModeLabel() {
+        if (recommendationMode.checked) {
+            modeLabel.textContent = 'Recommend from my wardrobe only';
+            modeLabel.classList.remove('text-gray-700');
+            modeLabel.classList.add('text-indigo-600', 'font-semibold');
+        } else {
+            modeLabel.textContent = 'Recommend from all clothes';
+            modeLabel.classList.remove('text-indigo-600', 'font-semibold');
+            modeLabel.classList.add('text-gray-700');
+        }
+    }
+
+    // Add toggle switch event listener
+    recommendationMode.addEventListener('change', updateModeLabel);
 
     // Add welcome message
     addMessage('AI', 'Hi! I\'m your AI Fashion Assistant. I can help you create perfect outfits using your uploaded clothes. You can ask me things like:', true);
@@ -31,7 +49,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 body: JSON.stringify({ 
                     message,
-                    chat_id: currentChatId  // Include current chat ID if it exists
+                    chat_id: currentChatId,  // Include current chat ID if it exists
+                    wardrobe_only: recommendationMode.checked  // Include recommendation mode
                 })
             });
 

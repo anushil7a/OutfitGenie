@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>AI Fashion Assistant - Data View</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="bg-gray-100">
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="flex justify-between items-center py-4">
+                <div class="text-xl font-bold text-gray-800">AI Outfit Finder</div>
+                <div class="space-x-4">
+                    {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('index') }}" class="text-gray-600 hover:text-gray-800">Home</a>
+                        <a href="{{ url_for('my_outfits') }}" class="text-gray-600 hover:text-gray-800">My Outfits</a>
+                        <a href="{{ url_for('chat') }}" class="text-gray-600 hover:text-gray-800">Chat</a>
+                        <a href="{{ url_for('ai_data') }}" class="text-indigo-600 font-semibold">AI Data</a>
+                        <a href="{{ url_for('logout') }}" class="text-gray-600 hover:text-gray-800">Logout</a>
+                    {% else %}
+                        <a href="{{ url_for('login') }}" class="text-gray-600 hover:text-gray-800">Login</a>
+                        <a href="{{ url_for('register') }}" class="text-gray-600 hover:text-gray-800">Register</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-4 py-8">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h1 class="text-2xl font-bold mb-6">AI Input Data</h1>
+            
+            <!-- User Information -->
+            <div class="mb-8">
+                <h2 class="text-xl font-semibold mb-4">User Information</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h3 class="font-medium text-gray-700 mb-2">Physical Attributes</h3>
+                        <p>Height: {{ current_user.height }} inches</p>
+                        <p>Weight: {{ current_user.weight }} lbs</p>
+                        <p>Gender: {{ current_user.gender }}</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h3 class="font-medium text-gray-700 mb-2">Location</h3>
+                        <p>Current Location: {{ location or 'Not set' }}</p>
+                        <p>Weather: {{ weather.condition if weather else 'Not available' }}</p>
+                        <p>Temperature: {{ weather.temperature if weather else 'N/A' }}°F</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Preferences -->
+            <div class="mb-8">
+                <h2 class="text-xl font-semibold mb-4">Style Preferences</h2>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <pre class="whitespace-pre-wrap">{{ preferences | tojson(indent=2) }}</pre>
+                </div>
+            </div>
+
+            <!-- Wardrobe Items -->
+            <div class="mb-8">
+                <h2 class="text-xl font-semibold mb-4">Wardrobe Items</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {% for outfit in outfits %}
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <div class="flex items-start space-x-4">
+                            <img src="{{ outfit.image_url }}" alt="Clothing item" class="w-24 h-24 object-cover rounded-lg">
+                            <div class="flex-1">
+                                <div class="prose prose-sm max-w-none">
+                                    {{ outfit.analysis | safe }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- AI Notes -->
+            <div class="mb-8">
+                <h2 class="text-xl font-semibold mb-4">AI Notes</h2>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <form id="notes-form" class="mb-4">
+                        <textarea id="ai-notes" rows="4" class="w-full p-2 border rounded-lg" placeholder="Add notes for the AI (e.g., style preferences, outfit ideas, etc.)">{{ current_user.ai_notes or '' }}</textarea>
+                        <button type="submit" class="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Save Notes
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.getElementById('notes-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const notes = document.getElementById('ai-notes').value;
+            
+            try {
+                const response = await fetch('/update-ai-notes', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({ notes })
+                });
+                
+                if (response.ok) {
+                    alert('Notes saved successfully!');
+                } else {
+                    alert('Failed to save notes. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error saving notes:', error);
+                alert('Failed to save notes. Please try again.');
+            }
+        });
+    </script>
+</body>
+</html> 

@@ -19,6 +19,7 @@
                             <a href="{{ url_for('index') }}" class="text-indigo-600 font-semibold">Home</a>
                             <a href="{{ url_for('my_outfits') }}" class="text-gray-600 hover:text-gray-800">My Outfits</a>
                             <a href="{{ url_for('chat') }}" class="text-gray-600 hover:text-gray-800">Chat</a>
+                            <a href="{{ url_for('ai_data') }}" class="text-gray-600 hover:text-gray-800">AI Data</a>
                             <a href="{{ url_for('logout') }}" class="text-gray-600 hover:text-gray-800">Logout</a>
                         {% else %}
                             <a href="{{ url_for('login') }}" class="text-gray-600 hover:text-gray-800">Login</a>
@@ -77,6 +78,38 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Weight (lbs)</label>
                         <input type="number" name="weight" value="{{ current_user.weight if current_user.weight else '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Skin Tone</label>
+                        <div class="mt-1 flex items-center space-x-4">
+                            <input type="color" id="skin-tone-color" name="skin_tone_color" 
+                                   value="{{ current_user.preferences.get('skin_tone_color', '#FFD6C4') if current_user.preferences else '#FFD6C4' }}"
+                                   class="h-10 w-20 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <input type="text" id="skin-tone-text" name="skin_tone_text" 
+                                   value="{{ current_user.preferences.get('skin_tone_text', '') if current_user.preferences else '' }}"
+                                   placeholder="Or type your skin tone (e.g., fair, medium, dark)"
+                                   class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Hair Color</label>
+                        <select name="hair_color" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">Select hair color</option>
+                            <option value="black" {% if current_user.preferences and current_user.preferences.get('hair_color') == 'black' %}selected{% endif %}>Black</option>
+                            <option value="brown" {% if current_user.preferences and current_user.preferences.get('hair_color') == 'brown' %}selected{% endif %}>Brown</option>
+                            <option value="blonde" {% if current_user.preferences and current_user.preferences.get('hair_color') == 'blonde' %}selected{% endif %}>Blonde</option>
+                            <option value="red" {% if current_user.preferences and current_user.preferences.get('hair_color') == 'red' %}selected{% endif %}>Red</option>
+                            <option value="gray" {% if current_user.preferences and current_user.preferences.get('hair_color') == 'gray' %}selected{% endif %}>Gray</option>
+                            <option value="white" {% if current_user.preferences and current_user.preferences.get('hair_color') == 'white' %}selected{% endif %}>White</option>
+                            <option value="other" {% if current_user.preferences and current_user.preferences.get('hair_color') == 'other' %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+                    <div id="other-hair-color-container" class="hidden">
+                        <label class="block text-sm font-medium text-gray-700">Custom Hair Color</label>
+                        <input type="text" name="other_hair_color" 
+                               value="{{ current_user.preferences.get('hair_color_text', '') if current_user.preferences else '' }}"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                               placeholder="Enter your hair color">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Gender</label>
@@ -273,6 +306,44 @@
                 updateLocation();
             }
         });
+
+        // Handle custom hair color
+        const hairColorSelect = document.querySelector('select[name="hair_color"]');
+        const otherHairColorContainer = document.getElementById('other-hair-color-container');
+
+        if (hairColorSelect && otherHairColorContainer) {
+            hairColorSelect.addEventListener('change', function(e) {
+                if (e.target.value === 'other') {
+                    otherHairColorContainer.classList.remove('hidden');
+                } else {
+                    otherHairColorContainer.classList.add('hidden');
+                }
+            });
+
+            // Initialize hair color field state
+            if (hairColorSelect.value === 'other') {
+                otherHairColorContainer.classList.remove('hidden');
+            }
+        }
+
+        // Handle skin tone color wheel and text input
+        const skinToneColor = document.getElementById('skin-tone-color');
+        const skinToneText = document.getElementById('skin-tone-text');
+
+        if (skinToneColor && skinToneText) {
+            skinToneColor.addEventListener('input', function(e) {
+                // Update text input with color name if possible
+                const color = e.target.value;
+                // You could add a color-to-name mapping here if needed
+            });
+
+            skinToneText.addEventListener('input', function(e) {
+                // Clear color picker when text is entered
+                if (e.target.value) {
+                    skinToneColor.value = '#FFD6C4'; // Reset to default
+                }
+            });
+        }
     </script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>

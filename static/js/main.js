@@ -248,6 +248,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 height: formData.get('height'),
                 weight: formData.get('weight'),
                 gender: formData.get('gender'),
+                skin_tone_color: document.getElementById('skin-tone-color').value,
+                skin_tone_text: formData.get('skin_tone_text'),
+                hair_color: formData.get('hair_color'),
+                other_hair_color: formData.get('other_hair_color'),
                 styles: styles,
                 other_style: otherStyle
             };

@@ -70,6 +70,7 @@ class User(UserMixin, db.Model):
     weight = db.Column(db.Float)
     gender = db.Column(db.String(20))
     preferences = db.Column(db.JSON)
+    ai_notes = db.Column(db.Text)  # Add AI notes field
     outfits = db.relationship('Outfit', backref='user', lazy=True)
     chats = db.relationship('Chat', backref='user', lazy=True)
 
@@ -338,19 +339,24 @@ def save_preferences():
     # Get selected styles
     styles = data.get('styles', [])
     
-    # If there's a custom style, add it to the list and store it separately
+    # Create preferences dictionary with all user preferences
+    preferences = {
+        'styles': styles,
+        'skin_tone_color': data.get('skin_tone_color'),
+        'skin_tone_text': data.get('skin_tone_text'),
+        'hair_color': data.get('hair_color'),
+        'hair_color_text': data.get('other_hair_color') if data.get('hair_color') == 'other' else None
+    }
+    
+    # If there's a custom style, add it to the preferences
     other_style = data.get('other_style')
     if other_style and other_style.strip():
         if 'other' not in styles:
-            styles.append('other')  # Add 'other' to the styles list if not already present
-        current_user.preferences = {
-            'styles': styles,
-            'custom_style': other_style.strip()
-        }
-    else:
-        current_user.preferences = {
-            'styles': styles
-        }
+            styles.append('other')
+        preferences['custom_style'] = other_style.strip()
+    
+    # Save all preferences in the JSON field
+    current_user.preferences = preferences
     
     db.session.commit()
     return jsonify({'message': 'Preferences saved successfully'})
@@ -680,6 +686,9 @@ Height: {current_user.height}inches
 Weight: {current_user.weight}lbs
 Gender: {current_user.gender}
 
+User's AI Notes:
+{current_user.ai_notes or 'No additional notes provided.'}
+
 IMPORTANT: Only recommend outfits using the clothes the user has already uploaded. Do not suggest items they don't own.
 
 Please provide a VERY SHORT response (1-2 sentences maximum) that:
@@ -703,6 +712,9 @@ User's preferences and measurements:
 Height: {current_user.height}inches
 Weight: {current_user.weight}lbs
 Gender: {current_user.gender}
+
+User's AI Notes:
+{current_user.ai_notes or 'No additional notes provided.'}
 
 You can recommend both items the user owns and items they don't own yet. When suggesting items they don't own, clearly indicate this in your response.
 
@@ -794,6 +806,37 @@ Response:"""
         print(f"Error in chat_message: {str(e)}")
         print(f"Error type: {type(e)}")
         print(f"Error details: {e.__dict__ if hasattr(e, '__dict__') else 'No details available'}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/ai-data')
+@login_required
+def ai_data():
+    # Get user's outfits
+    outfits = Outfit.query.filter_by(user_id=current_user.id).all()
+    
+    # Get location and weather from session
+    location = session.get('location')
+    weather = session.get('weather_data')
+    
+    return render_template('ai_data.html',
+                         outfits=outfits,
+                         location=location,
+                         weather=weather,
+                         preferences=current_user.preferences)
+
+@app.route('/update-ai-notes', methods=['POST'])
+@login_required
+def update_ai_notes():
+    try:
+        data = request.json
+        notes = data.get('notes', '').strip()
+        
+        current_user.ai_notes = notes
+        db.session.commit()
+        
+        return jsonify({'message': 'Notes updated successfully'})
+    except Exception as e:
+        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 @app.after_request

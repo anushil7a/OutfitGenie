@@ -71,11 +71,11 @@
                 <form id="preferences-form" class="space-y-4">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Height (cm)</label>
+                        <label class="block text-sm font-medium text-gray-700">Height (in)</label>
                         <input type="number" name="height" value="{{ current_user.height if current_user.height else '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Weight (kg)</label>
+                        <label class="block text-sm font-medium text-gray-700">Weight (lbs)</label>
                         <input type="number" name="weight" value="{{ current_user.weight if current_user.weight else '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     </div>
                     <div>

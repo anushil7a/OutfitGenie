@@ -627,6 +627,21 @@ def get_chat(chat_id):
         'messages': chat.messages
     })
 
+@app.route('/chat/<int:chat_id>', methods=['DELETE'])
+@login_required
+def delete_chat(chat_id):
+    try:
+        chat = Chat.query.get_or_404(chat_id)
+        if chat.user_id != current_user.id:
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        db.session.delete(chat)
+        db.session.commit()
+        return jsonify({'message': 'Chat deleted successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/chat', methods=['POST'])
 @login_required
 def chat_message():
@@ -661,8 +676,8 @@ User's uploaded clothes:
 
 User's preferences and measurements:
 {json.dumps(current_user.preferences, indent=2)}
-Height: {current_user.height}
-Weight: {current_user.weight}
+Height: {current_user.height}inches
+Weight: {current_user.weight}lbs
 Gender: {current_user.gender}
 
 IMPORTANT: Only recommend outfits using the clothes the user has already uploaded. Do not suggest items they don't own.
@@ -685,8 +700,8 @@ User's uploaded clothes:
 
 User's preferences and measurements:
 {json.dumps(current_user.preferences, indent=2)}
-Height: {current_user.height}
-Weight: {current_user.weight}
+Height: {current_user.height}inches
+Weight: {current_user.weight}lbs
 Gender: {current_user.gender}
 
 You can recommend both items the user owns and items they don't own yet. When suggesting items they don't own, clearly indicate this in your response.

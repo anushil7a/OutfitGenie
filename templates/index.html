@@ -68,7 +68,7 @@
 
             <!-- Preferences Section -->
             <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-2xl font-bold mb-4">Your Preferences</h2>
+                <h2 class="text-2xl font-bold mb-4">User Information</h2>
                 <form id="preferences-form" class="space-y-4">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div>
@@ -93,7 +93,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Hair Color</label>
-                        <select name="hair_color" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <select name="hair_color" id="hair_color" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">Select hair color</option>
                             <option value="black" {% if current_user.preferences and current_user.preferences.get('hair_color') == 'black' %}selected{% endif %}>Black</option>
                             <option value="brown" {% if current_user.preferences and current_user.preferences.get('hair_color') == 'brown' %}selected{% endif %}>Brown</option>
@@ -101,13 +101,13 @@
                             <option value="red" {% if current_user.preferences and current_user.preferences.get('hair_color') == 'red' %}selected{% endif %}>Red</option>
                             <option value="gray" {% if current_user.preferences and current_user.preferences.get('hair_color') == 'gray' %}selected{% endif %}>Gray</option>
                             <option value="white" {% if current_user.preferences and current_user.preferences.get('hair_color') == 'white' %}selected{% endif %}>White</option>
-                            <option value="other" {% if current_user.preferences and current_user.preferences.get('hair_color') == 'other' %}selected{% endif %}>Other</option>
+                            <option value="other" {% if current_user.preferences and current_user.preferences.get('hair_color') not in ['black', 'brown', 'blonde', 'red', 'gray', 'white', ''] %}selected{% endif %}>Other</option>
                         </select>
                     </div>
-                    <div id="other-hair-color-container" class="hidden">
+                    <div id="other_hair_color_container" class="{% if current_user.preferences and current_user.preferences.get('hair_color') not in ['black', 'brown', 'blonde', 'red', 'gray', 'white', ''] %}block{% else %}hidden{% endif %}">
                         <label class="block text-sm font-medium text-gray-700">Custom Hair Color</label>
-                        <input type="text" name="other_hair_color" 
-                               value="{{ current_user.preferences.get('hair_color_text', '') if current_user.preferences else '' }}"
+                        <input type="text" name="other_hair_color" id="other_hair_color" 
+                               value="{{ current_user.preferences.get('hair_color', '') if current_user.preferences and current_user.preferences.get('hair_color') not in ['black', 'brown', 'blonde', 'red', 'gray', 'white', ''] else '' }}"
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                placeholder="Enter your hair color">
                     </div>
@@ -240,111 +240,6 @@
             </div>
         </div>
     </main>
-
-    <script>
-        function updateLocation() {
-            const location = document.getElementById('location-input').value;
-            if (!location) {
-                alert('Please enter a location');
-                return;
-            }
-
-            // Show loading state
-            const updateButton = document.querySelector('button[onclick="updateLocation()"]');
-            const originalText = updateButton.textContent;
-            updateButton.textContent = 'Updating...';
-            updateButton.disabled = true;
-
-            fetch('/update-location', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-                },
-                body: JSON.stringify({ location: location })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    console.log('Location updated successfully:', data);
-                    // Update the current location display
-                    const locationText = document.querySelector('.mt-1.text-sm.text-gray-500');
-                    if (locationText) {
-                        locationText.textContent = `Current location: ${location}`;
-                    }
-                    // Show the weather section
-                    const weatherSection = document.getElementById('weather-section');
-                    if (weatherSection) {
-                        weatherSection.style.display = 'block';
-                    }
-                    // Reload the page after a short delay to ensure all data is updated
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1000);
-                } else {
-                    throw new Error(data.error || 'Failed to update location');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error updating location: ' + error.message);
-                // Reset button state
-                updateButton.textContent = originalText;
-                updateButton.disabled = false;
-            });
-        }
-
-        // Add event listener for Enter key in location input
-        document.getElementById('location-input').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                updateLocation();
-            }
-        });
-
-        // Handle custom hair color
-        const hairColorSelect = document.querySelector('select[name="hair_color"]');
-        const otherHairColorContainer = document.getElementById('other-hair-color-container');
-
-        if (hairColorSelect && otherHairColorContainer) {
-            hairColorSelect.addEventListener('change', function(e) {
-                if (e.target.value === 'other') {
-                    otherHairColorContainer.classList.remove('hidden');
-                } else {
-                    otherHairColorContainer.classList.add('hidden');
-                }
-            });
-
-            // Initialize hair color field state
-            if (hairColorSelect.value === 'other') {
-                otherHairColorContainer.classList.remove('hidden');
-            }
-        }
-
-        // Handle skin tone color wheel and text input
-        const skinToneColor = document.getElementById('skin-tone-color');
-        const skinToneText = document.getElementById('skin-tone-text');
-
-        if (skinToneColor && skinToneText) {
-            skinToneColor.addEventListener('input', function(e) {
-                // Update text input with color name if possible
-                const color = e.target.value;
-                // You could add a color-to-name mapping here if needed
-            });
-
-            skinToneText.addEventListener('input', function(e) {
-                // Clear color picker when text is entered
-                if (e.target.value) {
-                    skinToneColor.value = '#FFD6C4'; // Reset to default
-                }
-            });
-        }
-    </script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html> 

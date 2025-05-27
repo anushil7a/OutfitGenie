@@ -244,14 +244,17 @@ document.addEventListener('DOMContentLoaded', () => {
             // Get custom style if "other" is selected
             const otherStyle = document.querySelector('input[name="other_style"]').value;
             
+            // Get hair color, using custom input if "other" is selected
+            const hairColor = formData.get('hair_color');
+            const hairColorText = hairColor === 'other' ? formData.get('other_hair_color') : hairColor;
+            
             const preferences = {
                 height: formData.get('height'),
                 weight: formData.get('weight'),
                 gender: formData.get('gender'),
-                skin_tone_color: document.getElementById('skin-tone-color').value,
+                skin_tone_color: formData.get('skin_tone_color'),
                 skin_tone_text: formData.get('skin_tone_text'),
-                hair_color: formData.get('hair_color'),
-                other_hair_color: formData.get('other_hair_color'),
+                hair_color: hairColorText,
                 styles: styles,
                 other_style: otherStyle
             };
@@ -267,17 +270,62 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 if (response.ok) {
-                    const data = await response.json();
                     alert('Preferences saved successfully!');
+                    // Reload recommendations after saving preferences
+                    await getRecommendations();
                 } else {
-                    const error = await response.json();
-                    alert(error.error || 'Failed to save preferences');
+                    throw new Error('Failed to save preferences');
                 }
             } catch (error) {
                 console.error('Error saving preferences:', error);
                 alert('Error saving preferences. Please try again.');
             }
         });
+    }
+
+    // Handle skin tone color wheel and text input
+    const skinToneColor = document.getElementById('skin_tone_color');
+    const skinToneText = document.getElementById('skin_tone_text');
+    const skinTonePreview = document.getElementById('skin_tone_preview');
+
+    if (skinToneColor && skinToneText && skinTonePreview) {
+        // Update preview when color changes
+        skinToneColor.addEventListener('input', (e) => {
+            skinTonePreview.style.backgroundColor = e.target.value;
+            skinToneText.value = e.target.value;
+        });
+
+        // Update color when text changes
+        skinToneText.addEventListener('input', (e) => {
+            const color = e.target.value;
+            if (/^#[0-9A-F]{6}$/i.test(color)) {
+                skinToneColor.value = color;
+                skinTonePreview.style.backgroundColor = color;
+            }
+        });
+    }
+
+    // Handle hair color selection
+    const hairColorSelect = document.getElementById('hair_color');
+    const otherHairColorInput = document.getElementById('other_hair_color');
+    const otherHairColorContainer = document.getElementById('other_hair_color_container');
+
+    if (hairColorSelect && otherHairColorInput && otherHairColorContainer) {
+        hairColorSelect.addEventListener('change', (e) => {
+            if (e.target.value === 'other') {
+                otherHairColorContainer.classList.remove('hidden');
+                otherHairColorInput.required = true; // Make the custom input required when "other" is selected
+            } else {
+                otherHairColorContainer.classList.add('hidden');
+                otherHairColorInput.required = false;
+            }
+        });
+
+        // Initialize visibility based on current selection
+        if (hairColorSelect.value === 'other') {
+            otherHairColorContainer.classList.remove('hidden');
+            otherHairColorInput.required = true;
+        }
     }
 
     // Get outfit recommendations

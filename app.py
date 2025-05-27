@@ -633,7 +633,7 @@ def chat_message():
     data = request.json
     message = data.get('message', '').strip()
     chat_id = data.get('chat_id')  # Get chat_id from request if it exists
-    wardrobe_only = data.get('wardrobe_only', False)  # Get wardrobe_only 
+    wardrobe_only = data.get('wardrobe_only', False)  # Get wardrobe_only flag
     print(f"wardrobe_only: {wardrobe_only}")
     
     if not message:
@@ -697,9 +697,11 @@ Please provide a VERY SHORT response (1-2 sentences maximum) that:
 3. Suggests additional items they don't own (if relevant)
 4. Includes the image_url of any recommended items they own
 
-Format your response as JSON with two fields:
-1. "response": your short answer
-2. "image_urls": list of image URLs for the recommended items they own
+IMPORTANT: Your response MUST be in valid JSON format with these exact fields:
+{{
+    "response": "your short answer here",
+    "image_urls": ["list", "of", "image", "urls", "from", "user's", "wardrobe"]
+}}
 
 Response:"""
 
@@ -707,17 +709,25 @@ Response:"""
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are a concise fashion assistant. Keep responses to 1-2 sentences maximum. Always include image URLs in your response."},
+                {"role": "system", "content": "You are a concise fashion assistant. Keep responses to 1-2 sentences maximum. Always format your response as valid JSON with 'response' and 'image_urls' fields."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=150
         )
 
-        ai_response = response.choices[0].message.content
+        ai_response = response.choices[0].message.content.strip()
 
         try:
             # Try to parse the response as JSON
             response_data = json.loads(ai_response)
+            
+            # Validate response format
+            if not isinstance(response_data, dict) or 'response' not in response_data or 'image_urls' not in response_data:
+                raise json.JSONDecodeError("Invalid response format", ai_response, 0)
+            
+            # Ensure image_urls is a list
+            if not isinstance(response_data['image_urls'], list):
+                response_data['image_urls'] = []
             
             # Get or create chat
             if chat_id:
@@ -740,12 +750,30 @@ Response:"""
             response_data['chat_id'] = chat.id
             
             return jsonify(response_data)
-        except json.JSONDecodeError:
-            # If parsing fails, return the raw response
-            return jsonify({
-                'response': ai_response,
-                'image_urls': []
-            })
+        except json.JSONDecodeError as e:
+            print(f"Error parsing AI response: {str(e)}")
+            print(f"Raw AI response: {ai_response}")
+            # If parsing fails, try to extract a meaningful response
+            try:
+                # Try to find JSON-like structure in the response
+                import re
+                json_match = re.search(r'\{.*\}', ai_response, re.DOTALL)
+                if json_match:
+                    response_data = json.loads(json_match.group())
+                else:
+                    # If no JSON found, create a structured response
+                    response_data = {
+                        'response': ai_response,
+                        'image_urls': []
+                    }
+            except:
+                # If all parsing attempts fail, return a clean error response
+                response_data = {
+                    'response': 'I apologize, but I had trouble formatting my response. Please try asking your question again.',
+                    'image_urls': []
+                }
+            
+            return jsonify(response_data)
 
     except Exception as e:
         print(f"Error in chat_message: {str(e)}")

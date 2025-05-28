@@ -4,7 +4,7 @@ from config import Config
 
 def get_weather_data(latitude=None, longitude=None, city=None):
     """
-    Get weather data for a specific location
+    Get weather data for a specific location (returns Fahrenheit, mph, icon URL, and all important info)
     """
     try:
         # Use OpenWeatherMap API
@@ -14,7 +14,7 @@ def get_weather_data(latitude=None, longitude=None, city=None):
         # Build query parameters
         params = {
             'appid': api_key,
-            'units': 'metric'  # Use metric units
+            'units': 'imperial'  # Use imperial units (Fahrenheit, mph)
         }
 
         if latitude and longitude:
@@ -33,12 +33,13 @@ def get_weather_data(latitude=None, longitude=None, city=None):
 
         # Extract relevant weather information
         weather_data = {
-            'temperature': data['main']['temp'],
+            'temperature': round(data['main']['temp']),
+            'feels_like': round(data['main']['feels_like']),
             'condition': data['weather'][0]['main'].lower(),
-            'humidity': data['main']['humidity'],
-            'wind_speed': data['wind']['speed'],
             'description': data['weather'][0]['description'],
-            'icon': data['weather'][0]['icon']
+            'icon': f"http://openweathermap.org/img/wn/{data['weather'][0]['icon']}@2x.png",
+            'humidity': data['main']['humidity'],
+            'wind_speed': round(data['wind']['speed']),  # Already in mph
         }
 
         return weather_data

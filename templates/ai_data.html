@@ -113,6 +113,9 @@
     </main>
 
     <script>
+        // Store original notes when entering edit mode
+        let originalNotes = '';
+        
         // Handle edit mode toggle
         const toggleEditBtn = document.getElementById('toggle-edit');
         const existingNotes = document.getElementById('existing-notes');
@@ -120,12 +123,26 @@
         
         toggleEditBtn.addEventListener('click', () => {
             const isReadOnly = existingNotes.readOnly;
-            existingNotes.readOnly = !isReadOnly;
-            existingNotes.classList.toggle('bg-gray-50');
-            saveExistingNotesBtn.classList.toggle('hidden');
-            toggleEditBtn.textContent = isReadOnly ? 'Cancel Edit' : 'Edit Notes';
-            toggleEditBtn.classList.toggle('bg-gray-200');
-            toggleEditBtn.classList.toggle('bg-red-200');
+            
+            if (isReadOnly) {
+                // Entering edit mode - store original content
+                originalNotes = existingNotes.value;
+                existingNotes.readOnly = false;
+                existingNotes.classList.remove('bg-gray-50');
+                saveExistingNotesBtn.classList.remove('hidden');
+                toggleEditBtn.textContent = 'Cancel Edit';
+                toggleEditBtn.classList.remove('bg-gray-200');
+                toggleEditBtn.classList.add('bg-red-200');
+            } else {
+                // Canceling edit - restore original content
+                existingNotes.value = originalNotes;
+                existingNotes.readOnly = true;
+                existingNotes.classList.add('bg-gray-50');
+                saveExistingNotesBtn.classList.add('hidden');
+                toggleEditBtn.textContent = 'Edit Notes';
+                toggleEditBtn.classList.remove('bg-red-200');
+                toggleEditBtn.classList.add('bg-gray-200');
+            }
         });
 
         // Handle saving changes to existing notes
@@ -144,6 +161,8 @@
                 
                 if (response.ok) {
                     alert('Notes updated successfully!');
+                    // Update original notes with the new content
+                    originalNotes = notes;
                     // Exit edit mode
                     existingNotes.readOnly = true;
                     existingNotes.classList.add('bg-gray-50');

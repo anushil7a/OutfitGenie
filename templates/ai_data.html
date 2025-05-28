@@ -93,6 +93,42 @@
                     </div>
                     {% endfor %}
                 </div>
+
+                <!-- Outfits Pagination Controls -->
+                {% if outfits_pagination.pages > 1 %}
+                <div class="mt-6 flex justify-center space-x-2">
+                    {% if outfits_pagination.has_prev %}
+                    <a href="{{ url_for('ai_data', outfits_page=outfits_pagination.prev_num, feedback_page=feedback_pagination.page) }}" 
+                       class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                        Previous
+                    </a>
+                    {% endif %}
+                    
+                    {% for page_num in outfits_pagination.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
+                        {% if page_num %}
+                            {% if page_num == outfits_pagination.page %}
+                            <span class="px-4 py-2 bg-indigo-600 text-white rounded-md">
+                                {{ page_num }}
+                            </span>
+                            {% else %}
+                            <a href="{{ url_for('ai_data', outfits_page=page_num, feedback_page=feedback_pagination.page) }}" 
+                               class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                                {{ page_num }}
+                            </a>
+                            {% endif %}
+                        {% else %}
+                            <span class="px-4 py-2 text-gray-500">...</span>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if outfits_pagination.has_next %}
+                    <a href="{{ url_for('ai_data', outfits_page=outfits_pagination.next_num, feedback_page=feedback_pagination.page) }}" 
+                       class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                        Next
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
             </div>
 
             <!-- AI Notes -->
@@ -130,7 +166,7 @@
             <div class="bg-white rounded-lg shadow-md p-6 mb-6">
                 <h2 class="text-xl font-semibold mb-4">Recommendation Feedback</h2>
                 <div class="space-y-4">
-                    {% for feedback in recommendation_feedback %}
+                    {% for feedback in feedback %}
                     <div class="border rounded-lg p-4 {% if feedback.feedback == 'like' %}bg-green-50 border-green-200{% else %}bg-red-50 border-red-200{% endif %}">
                         <div class="flex justify-between items-start">
                             <div class="flex-1">
@@ -160,6 +196,42 @@
                     </div>
                     {% endfor %}
                 </div>
+
+                <!-- Feedback Pagination Controls -->
+                {% if feedback_pagination.pages > 1 %}
+                <div class="mt-6 flex justify-center space-x-2">
+                    {% if feedback_pagination.has_prev %}
+                    <a href="{{ url_for('ai_data', outfits_page=outfits_pagination.page, feedback_page=feedback_pagination.prev_num) }}" 
+                       class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                        Previous
+                    </a>
+                    {% endif %}
+                    
+                    {% for page_num in feedback_pagination.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
+                        {% if page_num %}
+                            {% if page_num == feedback_pagination.page %}
+                            <span class="px-4 py-2 bg-indigo-600 text-white rounded-md">
+                                {{ page_num }}
+                            </span>
+                            {% else %}
+                            <a href="{{ url_for('ai_data', outfits_page=outfits_pagination.page, feedback_page=page_num) }}" 
+                               class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                                {{ page_num }}
+                            </a>
+                            {% endif %}
+                        {% else %}
+                            <span class="px-4 py-2 text-gray-500">...</span>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if feedback_pagination.has_next %}
+                    <a href="{{ url_for('ai_data', outfits_page=outfits_pagination.page, feedback_page=feedback_pagination.next_num) }}" 
+                       class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                        Next
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
             </div>
         </div>
     </main>

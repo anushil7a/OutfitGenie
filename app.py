@@ -856,23 +856,33 @@ Response:"""
 @app.route('/ai-data')
 @login_required
 def ai_data():
-    # Get user's outfits
-    outfits = Outfit.query.filter_by(user_id=current_user.id).all()
+    # Get page numbers from query parameters, default to 1
+    outfits_page = request.args.get('outfits_page', 1, type=int)
+    feedback_page = request.args.get('feedback_page', 1, type=int)
+    per_page = 8  # Number of items per page
+    
+    # Get user's outfits with pagination
+    outfits_pagination = Outfit.query.filter_by(user_id=current_user.id)\
+        .order_by(Outfit.created_at.desc())\
+        .paginate(page=outfits_page, per_page=per_page, error_out=False)
+    
+    # Get recommendation feedback with pagination
+    feedback_pagination = RecommendationFeedback.query.filter_by(user_id=current_user.id)\
+        .order_by(RecommendationFeedback.created_at.desc())\
+        .paginate(page=feedback_page, per_page=per_page, error_out=False)
     
     # Get location and weather from session
     location = session.get('location')
     weather = session.get('weather_data')
     
-    # Get recommendation feedback
-    feedback = RecommendationFeedback.query.filter_by(user_id=current_user.id)\
-        .order_by(RecommendationFeedback.created_at.desc()).all()
-    
     return render_template('ai_data.html',
-                         outfits=outfits,
+                         outfits=outfits_pagination.items,
+                         outfits_pagination=outfits_pagination,
+                         feedback=feedback_pagination.items,
+                         feedback_pagination=feedback_pagination,
                          location=location,
                          weather=weather,
-                         preferences=current_user.preferences,
-                         recommendation_feedback=feedback)
+                         preferences=current_user.preferences)
 
 @app.route('/update-ai-notes', methods=['POST'])
 @login_required

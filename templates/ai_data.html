@@ -83,21 +83,54 @@
             <div class="mb-8">
                 <h2 class="text-xl font-semibold mb-4">AI Notes</h2>
                 <div class="bg-gray-50 p-4 rounded-lg">
-                    <form id="notes-form" class="mb-4">
-                        <textarea id="ai-notes" rows="4" class="w-full p-2 border rounded-lg" placeholder="Add notes for the AI (e.g., style preferences, outfit ideas, etc.)">{{ current_user.ai_notes or '' }}</textarea>
-                        <button type="submit" class="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                            Save Notes
+                    <!-- Display existing notes -->
+                    <div class="mb-6">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="font-medium text-gray-700">Current Notes</h3>
+                            <button id="toggle-edit" class="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                                Edit Notes
+                            </button>
+                        </div>
+                        <textarea id="existing-notes" rows="6" class="w-full p-2 border rounded-lg mb-2 bg-gray-50" readonly>{{ current_user.ai_notes or '' }}</textarea>
+                        <button id="save-existing-notes" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 hidden">
+                            Save Changes
                         </button>
-                    </form>
+                    </div>
+
+                    <!-- Add new notes -->
+                    <div>
+                        <h3 class="font-medium text-gray-700 mb-2">Add New Note</h3>
+                        <form id="notes-form" class="mb-4">
+                            <textarea id="new-notes" rows="4" class="w-full p-2 border rounded-lg" placeholder="Add a new note..."></textarea>
+                            <button type="submit" class="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                Add Note
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
     </main>
 
     <script>
-        document.getElementById('notes-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const notes = document.getElementById('ai-notes').value;
+        // Handle edit mode toggle
+        const toggleEditBtn = document.getElementById('toggle-edit');
+        const existingNotes = document.getElementById('existing-notes');
+        const saveExistingNotesBtn = document.getElementById('save-existing-notes');
+        
+        toggleEditBtn.addEventListener('click', () => {
+            const isReadOnly = existingNotes.readOnly;
+            existingNotes.readOnly = !isReadOnly;
+            existingNotes.classList.toggle('bg-gray-50');
+            saveExistingNotesBtn.classList.toggle('hidden');
+            toggleEditBtn.textContent = isReadOnly ? 'Cancel Edit' : 'Edit Notes';
+            toggleEditBtn.classList.toggle('bg-gray-200');
+            toggleEditBtn.classList.toggle('bg-red-200');
+        });
+
+        // Handle saving changes to existing notes
+        document.getElementById('save-existing-notes').addEventListener('click', async () => {
+            const notes = document.getElementById('existing-notes').value;
             
             try {
                 const response = await fetch('/update-ai-notes', {
@@ -110,13 +143,54 @@
                 });
                 
                 if (response.ok) {
-                    alert('Notes saved successfully!');
+                    alert('Notes updated successfully!');
+                    // Exit edit mode
+                    existingNotes.readOnly = true;
+                    existingNotes.classList.add('bg-gray-50');
+                    saveExistingNotesBtn.classList.add('hidden');
+                    toggleEditBtn.textContent = 'Edit Notes';
+                    toggleEditBtn.classList.remove('bg-red-200');
+                    toggleEditBtn.classList.add('bg-gray-200');
                 } else {
-                    alert('Failed to save notes. Please try again.');
+                    alert('Failed to update notes. Please try again.');
                 }
             } catch (error) {
-                console.error('Error saving notes:', error);
-                alert('Failed to save notes. Please try again.');
+                console.error('Error updating notes:', error);
+                alert('Failed to update notes. Please try again.');
+            }
+        });
+
+        // Handle adding new notes
+        document.getElementById('notes-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newNotes = document.getElementById('new-notes').value;
+            const existingNotes = document.getElementById('existing-notes').value;
+            
+            // Combine existing and new notes with a newline
+            const combinedNotes = existingNotes ? `${existingNotes}\n${newNotes}` : newNotes;
+            
+            try {
+                const response = await fetch('/update-ai-notes', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({ notes: combinedNotes })
+                });
+                
+                if (response.ok) {
+                    alert('Note added successfully!');
+                    // Update the existing notes display
+                    document.getElementById('existing-notes').value = combinedNotes;
+                    // Clear the new notes input
+                    document.getElementById('new-notes').value = '';
+                } else {
+                    alert('Failed to add note. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error adding note:', error);
+                alert('Failed to add note. Please try again.');
             }
         });
     </script>

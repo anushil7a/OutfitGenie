@@ -356,35 +356,56 @@ def my_outfits():
 @app.route('/preferences', methods=['POST'])
 @login_required
 def save_preferences():
-    data = request.json
-    current_user.height = data.get('height')
-    current_user.weight = data.get('weight')
-    current_user.gender = data.get('gender')
-    
-    # Get selected styles
-    styles = data.get('styles', [])
-    
-    # Create preferences dictionary with all user preferences
-    preferences = {
-        'styles': styles,
-        'skin_tone_color': data.get('skin_tone_color'),
-        'skin_tone_text': data.get('skin_tone_text'),
-        'hair_color': data.get('hair_color'),
-        'hair_color_text': data.get('other_hair_color') if data.get('hair_color') == 'other' else None
-    }
-    
-    # If there's a custom style, add it to the preferences
-    other_style = data.get('other_style')
-    if other_style and other_style.strip():
-        if 'other' not in styles:
-            styles.append('other')
-        preferences['custom_style'] = other_style.strip()
-    
-    # Save all preferences in the JSON field
-    current_user.preferences = preferences
-    
-    db.session.commit()
-    return jsonify({'message': 'Preferences saved successfully'})
+    try:
+        logger.info("Received preferences request")
+        data = request.json
+        logger.info(f"Request data: {data}")
+        
+        if not data:
+            logger.error("No data provided in request")
+            return jsonify({'error': 'No data provided'}), 400
+
+        # Get selected styles
+        styles = data.get('styles', [])
+        logger.info(f"Selected styles: {styles}")
+        
+        # Create preferences dictionary with all user preferences
+        preferences = {
+            'styles': styles,
+            'skin_tone_color': data.get('skin_tone_color'),
+            'skin_tone_text': data.get('skin_tone_text'),
+            'hair_color': data.get('hair_color'),
+            'hair_color_text': data.get('other_hair_color') if data.get('hair_color') == 'other' else None,
+            'height': data.get('height'),
+            'weight': data.get('weight'),
+            'gender': data.get('gender')
+        }
+        logger.info(f"Created preferences object: {preferences}")
+        
+        # If there's a custom style, add it to the preferences
+        other_style = data.get('other_style')
+        if other_style and other_style.strip():
+            if 'other' not in styles:
+                styles.append('other')
+            preferences['custom_style'] = other_style.strip()
+            logger.info(f"Added custom style: {other_style}")
+        
+        # Save all preferences in the JSON field
+        current_user.preferences = preferences
+        logger.info(f"Updated user preferences for user {current_user.id}")
+        
+        try:
+            db.session.commit()
+            logger.info("Successfully committed preferences to database")
+            return jsonify({'message': 'Preferences saved successfully'})
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Database error while saving preferences: {str(e)}")
+            return jsonify({'error': 'Failed to save preferences to database'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error saving preferences: {str(e)}")
+        return jsonify({'error': 'An unexpected error occurred while saving preferences'}), 500
 
 @app.route('/delete-outfit/<int:outfit_id>', methods=['POST'])
 @login_required
@@ -427,12 +448,8 @@ def delete_outfit(outfit_id):
         return jsonify({'error': f'Failed to delete outfit: {str(e)}'}), 500
 
 def get_weather_data(location="London"):
-    """Fetch current weather data for the given location."""
+    """Get weather data for a specific location"""
     try:
-        if not WEATHER_API_KEY:
-            logger.error("Weather API key is not set")
-            return None
-            
         logger.info(f"[WEATHER API CALL] Fetching weather data for {location}")
         params = {
             'q': location,
@@ -456,8 +473,11 @@ def get_weather_data(location="London"):
         
         logger.info(f"[WEATHER DATA] Successfully fetched weather data: {weather_data}")
         return weather_data
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching weather data: {str(e)}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error in get_weather_data: {str(e)}")
         return None
 
 def get_weather_recommendations(weather_data, user_preferences=None):
@@ -526,19 +546,24 @@ Response:"""
 @app.route('/update-location', methods=['POST'])
 def update_location():
     try:
+        logger.info("[UPDATE LOCATION] Starting location update")
         data = request.json
         location = data.get('location')
+        logger.info(f"[UPDATE LOCATION] Received location: {location}")
+        
         if not location:
-            logger.error("[DEBUG] No location provided in request")
+            logger.error("[UPDATE LOCATION] No location provided in request")
             return jsonify({'error': 'Location is required'}), 400
         
-        logger.info(f"[DEBUG] Updating location to: {location}")
+        logger.info(f"[UPDATE LOCATION] Fetching weather data for {location}")
         
         # Fetch weather data first
         weather_data = get_weather_data(location)
         if not weather_data:
-            logger.error(f"[DEBUG] Failed to get weather data for {location}")
+            logger.error(f"[UPDATE LOCATION] Failed to get weather data for {location}")
             return jsonify({'error': 'Failed to get weather data for this location'}), 400
+            
+        logger.info(f"[UPDATE LOCATION] Successfully got weather data: {weather_data}")
             
         # Update session data
         session['location'] = location
@@ -548,8 +573,8 @@ def update_location():
         # Force session to be saved
         session.modified = True
         
-        logger.info(f"[DEBUG] Successfully updated session with location: {location}")
-        logger.info(f"[DEBUG] Weather data cached: {weather_data}")
+        logger.info(f"[UPDATE LOCATION] Successfully updated session with location: {location}")
+        logger.info(f"[UPDATE LOCATION] Weather data cached: {weather_data}")
         
         return jsonify({
             'success': True, 
@@ -557,7 +582,7 @@ def update_location():
             'weather': weather_data
         })
     except Exception as e:
-        logger.error(f"Error updating location: {str(e)}")
+        logger.error(f"[UPDATE LOCATION] Error updating location: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 def analyze_clothing_image(image_data):

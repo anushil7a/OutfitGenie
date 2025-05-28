@@ -236,17 +236,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if (preferencesForm) {
         preferencesForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            console.log('Form submitted');
+            
             const formData = new FormData(preferencesForm);
+            console.log('Form data:', Object.fromEntries(formData));
             
             // Get all checked styles
             const styles = Array.from(document.querySelectorAll('input[name="styles"]:checked')).map(cb => cb.value);
+            console.log('Selected styles:', styles);
             
             // Get custom style if "other" is selected
             const otherStyle = document.querySelector('input[name="other_style"]').value;
+            console.log('Other style:', otherStyle);
             
             // Get hair color, using custom input if "other" is selected
             const hairColor = formData.get('hair_color');
             const hairColorText = hairColor === 'other' ? formData.get('other_hair_color') : hairColor;
+            console.log('Hair color:', hairColorText);
             
             const preferences = {
                 height: formData.get('height'),
@@ -258,27 +264,41 @@ document.addEventListener('DOMContentLoaded', () => {
                 styles: styles,
                 other_style: otherStyle
             };
+            console.log('Preferences object:', preferences);
 
             try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+                console.log('CSRF Token:', csrfToken);
+                
+                if (!csrfToken) {
+                    throw new Error('CSRF token not found');
+                }
+
+                console.log('Sending request to /preferences');
                 const response = await fetch('/preferences', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content
+                        'X-CSRFToken': csrfToken
                     },
                     body: JSON.stringify(preferences)
                 });
+                console.log('Response status:', response.status);
 
                 if (response.ok) {
-                    alert('Preferences saved successfully!');
+                    const data = await response.json();
+                    console.log('Response data:', data);
+                    alert(data.message || 'Preferences saved successfully!');
                     // Reload recommendations after saving preferences
                     await getRecommendations();
                 } else {
-                    throw new Error('Failed to save preferences');
+                    const errorData = await response.json();
+                    console.error('Error response:', errorData);
+                    throw new Error(errorData.error || 'Failed to save preferences');
                 }
             } catch (error) {
                 console.error('Error saving preferences:', error);
-                alert('Error saving preferences. Please try again.');
+                alert(error.message || 'Error saving preferences. Please try again.');
             }
         });
     }
@@ -551,6 +571,96 @@ document.addEventListener('DOMContentLoaded', () => {
         // Show/hide custom style input when "other" is checked/unchecked
         styleOtherCheckbox.addEventListener('change', function() {
             otherStyleContainer.classList.toggle('hidden', !this.checked);
+        });
+    }
+
+    // Handle location update
+    const locationForm = document.getElementById('location-form');
+    const updateLocationBtn = document.getElementById('update-location-btn');
+    
+    // Define updateLocation function globally
+    window.updateLocation = async () => {
+        console.log('Update location button clicked');
+        
+        const location = document.getElementById('location-input').value;
+        console.log('Location value:', location);
+        
+        if (!location) {
+            alert('Please enter a location');
+            return;
+        }
+        
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            console.log('CSRF Token:', csrfToken);
+            
+            if (!csrfToken) {
+                throw new Error('CSRF token not found');
+            }
+
+            console.log('Sending location update request');
+            const response = await fetch('/update-location', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ location })
+            });
+            console.log('Response status:', response.status);
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                // Update weather display
+                const weatherSection = document.getElementById('weather-section');
+                if (weatherSection && data.weather) {
+                    weatherSection.style.display = 'block';
+                    weatherSection.innerHTML = `
+                        <h2 class="text-2xl font-bold mb-4">Today's Weather</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <div class="flex items-center space-x-4 mb-4">
+                                    <img src="${data.weather.icon}" alt="${data.weather.description}" class="w-16 h-16">
+                                    <div>
+                                        <h3 class="text-xl font-semibold">${data.weather.temperature}°F</h3>
+                                        <p class="text-gray-600 capitalize">${data.weather.description}</p>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <p><span class="font-medium">Feels like:</span> ${data.weather.feels_like}°F</p>
+                                    <p><span class="font-medium">Humidity:</span> ${data.weather.humidity}%</p>
+                                    <p><span class="font-medium">Wind Speed:</span> ${data.weather.wind_speed} mph</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Show success message
+                alert('Location updated successfully!');
+            } else {
+                const errorData = await response.json();
+                console.error('Error response:', errorData);
+                throw new Error(errorData.error || 'Failed to update location');
+            }
+        } catch (error) {
+            console.error('Error updating location:', error);
+            alert(error.message || 'Error updating location. Please try again.');
+        }
+    };
+
+    // Add click event listener to the update location button
+    if (updateLocationBtn) {
+        updateLocationBtn.addEventListener('click', window.updateLocation);
+    }
+
+    // Also handle form submission
+    if (locationForm) {
+        locationForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            window.updateLocation();
         });
     }
 }); 

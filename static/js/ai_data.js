@@ -148,6 +148,57 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    // Modal logic for full-size wardrobe images
+    document.querySelectorAll('img.w-24.h-24.object-cover.rounded-lg').forEach(function(clickableImage) {
+        clickableImage.style.cursor = 'pointer';
+        clickableImage.addEventListener('click', function handleClick() {
+            // Create the overlay element
+            const overlay = document.createElement('div');
+            overlay.style.position = 'fixed';
+            overlay.style.top = '0';
+            overlay.style.left = '0';
+            overlay.style.width = '100%';
+            overlay.style.height = '100%';
+            overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            overlay.style.zIndex = '1000';
+            overlay.style.display = 'flex';
+            overlay.style.justifyContent = 'center';
+            overlay.style.alignItems = 'center';
+            overlay.style.cursor = 'zoom-out';
+            overlay.style.opacity = '0';
+            overlay.style.transition = 'opacity 0.3s ease-in-out';
+
+            // Create the full-size image element
+            const fullSizeImage = document.createElement('img');
+            fullSizeImage.src = clickableImage.src;
+            fullSizeImage.style.maxWidth = '90%';
+            fullSizeImage.style.maxHeight = '90%';
+            fullSizeImage.style.objectFit = 'contain';
+            fullSizeImage.style.borderRadius = '8px';
+
+            // Prevent clicks on the image itself from closing the overlay immediately
+            fullSizeImage.addEventListener('click', function(event) {
+                event.stopPropagation();
+            });
+
+            overlay.appendChild(fullSizeImage);
+            document.body.appendChild(overlay);
+
+            // Fade in
+            setTimeout(function() {
+                overlay.style.opacity = '1';
+            }, 10);
+
+            overlay.addEventListener('click', function() {
+                // Fade out
+                overlay.style.opacity = '0';
+                setTimeout(function() {
+                    document.body.removeChild(overlay);
+                }, 300); // Match the transition duration
+            });
+        });
+    });
 });
 
 // Delete feedback function (global)

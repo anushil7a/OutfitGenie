@@ -77,6 +77,36 @@
                         </div>
                     {% endfor %}
                 </div>
+
+                {% if pagination.pages > 1 %}
+                    <div class="mt-8 flex justify-center space-x-2">
+                        {% if pagination.has_prev %}
+                            <a href="{{ url_for('my_outfits', page=pagination.prev_num) }}" class="px-4 py-2 bg-white text-indigo-600 rounded-md hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                                Previous
+                            </a>
+                        {% endif %}
+                        
+                        {% for page_num in pagination.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
+                            {% if page_num %}
+                                {% if page_num == pagination.page %}
+                                    <span class="px-4 py-2 bg-indigo-600 text-white rounded-md">{{ page_num }}</span>
+                                {% else %}
+                                    <a href="{{ url_for('my_outfits', page=page_num) }}" class="px-4 py-2 bg-white text-indigo-600 rounded-md hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                                        {{ page_num }}
+                                    </a>
+                                {% endif %}
+                            {% else %}
+                                <span class="px-4 py-2 text-gray-500">...</span>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if pagination.has_next %}
+                            <a href="{{ url_for('my_outfits', page=pagination.next_num) }}" class="px-4 py-2 bg-white text-indigo-600 rounded-md hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                                Next
+                            </a>
+                        {% endif %}
+                    </div>
+                {% endif %}
             {% else %}
                 <div class="text-center py-8">
                     <p class="text-gray-600">No outfits uploaded yet. Go to the home page to upload some clothes!</p>

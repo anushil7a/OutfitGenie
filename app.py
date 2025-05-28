@@ -332,9 +332,14 @@ def save_feedback():
 @login_required
 def my_outfits():
     try:
-        # Get all outfits for the current user
-        outfits = Outfit.query.filter_by(user_id=current_user.id).order_by(Outfit.created_at.desc()).all()
-        print(f"Found {len(outfits)} outfits for user {current_user.id}")  # Debug print
+        # Get page number from query parameters, default to 1
+        page = request.args.get('page', 1, type=int)
+        per_page = 6  # Number of items per page
+        
+        # Get outfits for the current user with pagination
+        outfits_pagination = Outfit.query.filter_by(user_id=current_user.id)\
+            .order_by(Outfit.created_at.desc())\
+            .paginate(page=page, per_page=per_page, error_out=False)
         
         # Check if the uploads directory exists
         uploads_dir = os.path.join(app.root_path, 'static', 'uploads', str(current_user.id))
@@ -342,7 +347,7 @@ def my_outfits():
             os.makedirs(uploads_dir)
             print(f"Created uploads directory: {uploads_dir}")  # Debug print
         
-        return render_template('my_outfits.html', outfits=outfits)
+        return render_template('my_outfits.html', outfits=outfits_pagination.items, pagination=outfits_pagination)
     except Exception as e:
         print(f"Error in my_outfits route: {str(e)}")  # Debug print
         flash('Error loading outfits. Please try again.')

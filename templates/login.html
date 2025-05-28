@@ -16,7 +16,7 @@
                     Sign in to your account
                 </h2>
             </div>
-            <form class="mt-8 space-y-6" method="POST" action="{{ url_for('login') }}">
+            <form class="mt-8 space-y-6" method="POST" action="{{ url_for('auth.login') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="rounded-md shadow-sm -space-y-px">
                     <div>
@@ -38,7 +38,7 @@
             <div class="text-center">
                 <p class="text-sm text-gray-600">
                     Don't have an account?
-                    <a href="{{ url_for('register') }}" class="font-medium text-indigo-600 hover:text-indigo-500">
+                    <a href="{{ url_for('auth.register') }}" class="font-medium text-indigo-600 hover:text-indigo-500">
                         Register here
                     </a>
                 </p>

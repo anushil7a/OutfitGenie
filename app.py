@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_login import LoginManager, login_required, current_user
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect
 from flask_cors import CORS
@@ -10,11 +9,13 @@ import openai
 import requests
 from datetime import datetime, timedelta
 import json
-from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import base64
 from openai import OpenAI
 import logging
+from auth import auth
+from outfits import outfits
+from models import db, User, Outfit, Chat, RecommendationFeedback
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -36,12 +37,16 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # Initialize extensions
-db = SQLAlchemy(app)
+db.init_app(app)
 migrate = Migrate(app, db)
 csrf = CSRFProtect(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'login'
+login_manager.login_view = 'auth.login'
+
+# Register blueprints
+app.register_blueprint(auth)
+app.register_blueprint(outfits)
 
 # Configure OpenAI
 client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
@@ -59,71 +64,6 @@ class CustomJSONEncoder(json.JSONEncoder):
         return super().default(obj)
 
 app.json_encoder = CustomJSONEncoder
-
-# Database Models
-class User(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128))
-    height = db.Column(db.Float)
-    weight = db.Column(db.Float)
-    gender = db.Column(db.String(20))
-    preferences = db.Column(db.JSON)
-    ai_notes = db.Column(db.Text)  # Add AI notes field
-    outfits = db.relationship('Outfit', backref='user', lazy=True)
-    chats = db.relationship('Chat', backref='user', lazy=True)
-    feedback = db.relationship('RecommendationFeedback', backref='user', lazy=True)
-
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
-
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
-
-class Outfit(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    image_url = db.Column(db.String(255))
-    analysis = db.Column(db.Text)
-    items = db.Column(db.JSON)
-    occasion = db.Column(db.String(50))
-    weather = db.Column(db.JSON)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    rating = db.Column(db.Integer)
-
-class Chat(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    messages = db.Column(db.JSON)  # List of messages with sender and text
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'preview': self.messages[0]['text'][:50] + '...' if self.messages else 'New Chat',
-            'timestamp': self.created_at.isoformat()
-        }
-
-class RecommendationFeedback(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    recommendation = db.Column(db.Text, nullable=False)  # The recommendation text
-    question = db.Column(db.Text, nullable=False)  # The user's question that led to the recommendation
-    feedback = db.Column(db.String(10), nullable=False)  # 'like' or 'dislike'
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    context = db.Column(db.JSON)  # Store context like occasion, weather, etc.
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'recommendation': self.recommendation,
-            'question': self.question,
-            'feedback': self.feedback,
-            'created_at': self.created_at.isoformat(),
-            'context': self.context
-        }
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -155,25 +95,6 @@ def index():
         elif weather_data:
             logger.info(f"[WEATHER CACHE HIT] Using cached weather data: {weather_data}")
 
-        # Comment out recommendations for now
-        # recommendations = None
-        # if weather_data and current_user.is_authenticated:
-        #     try:
-        #         recommendations = get_weather_recommendations(weather_data, current_user.preferences)
-        #         if not recommendations:
-        #             recommendations = {
-        #                 "outfit": "A comfortable layered outfit suitable for the current weather.",
-        #                 "reasoning": "This outfit is chosen based on the current temperature and conditions.",
-        #                 "items": ["Item 1", "Item 2", "Item 3"]
-        #             }
-        #     except Exception as e:
-        #         logger.error(f"Error getting recommendations: {str(e)}")
-        #         recommendations = {
-        #             "outfit": "A comfortable layered outfit suitable for the current weather.",
-        #             "reasoning": "This outfit is chosen based on the current temperature and conditions.",
-        #             "items": ["Item 1", "Item 2", "Item 3"]
-        #         }
-
         logger.info(f"[DEBUG] Final weather data being sent to template: {weather_data}")
         return render_template('index.html',
                              weather=weather_data,
@@ -182,116 +103,6 @@ def index():
     except Exception as e:
         logger.error(f"Error in index route: {str(e)}")
         return render_template('index.html', current_location=location)
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        user = User.query.filter_by(username=username).first()
-        
-        if user and user.check_password(password):
-            login_user(user)
-            return redirect(url_for('index'))
-        flash('Invalid username or password')
-    return render_template('login.html')
-
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        
-        if User.query.filter_by(username=username).first():
-            flash('Username already exists')
-            return redirect(url_for('register'))
-            
-        user = User(username=username, email=email)
-        user.set_password(password)
-        db.session.add(user)
-        db.session.commit()
-        
-        login_user(user)
-        return redirect(url_for('index'))
-    return render_template('register.html')
-
-@app.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    return redirect(url_for('index'))
-
-@app.route('/upload', methods=['POST'])
-@login_required
-def upload_clothing():
-    if 'image' not in request.files:
-        return jsonify({'error': 'No image provided'}), 400
-    
-    files = request.files.getlist('image')
-    if not files or files[0].filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-
-    uploaded_files = []
-    for file in files:
-        if file and file.filename:
-            try:
-                filename = secure_filename(file.filename)
-                # Create user-specific upload directory
-                user_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], str(current_user.id))
-                os.makedirs(user_upload_dir, exist_ok=True)
-                
-                # Save file
-                filepath = os.path.join(user_upload_dir, filename)
-                file.save(filepath)
-                
-                # Process image with OpenAI Vision API
-                try:
-                    with open(filepath, 'rb') as img_file:
-                        analysis = analyze_clothing_image(img_file.read())
-                        
-                        # Create new outfit record
-                        outfit = Outfit(
-                            user_id=current_user.id,
-                            image_url=url_for('static', filename=f'uploads/{current_user.id}/{filename}'),
-                            analysis=analysis,
-                            created_at=datetime.utcnow()
-                        )
-                        db.session.add(outfit)
-                        uploaded_files.append({
-                            'message': 'Image uploaded successfully',
-                            'analysis': analysis,
-                            'image_url': outfit.image_url
-                        })
-                except Exception as e:
-                    print(f"Error processing image: {str(e)}")
-                    # If there's an error processing the image, still save the file
-                    outfit = Outfit(
-                        user_id=current_user.id,
-                        image_url=url_for('static', filename=f'uploads/{current_user.id}/{filename}'),
-                        created_at=datetime.utcnow()
-                    )
-                    db.session.add(outfit)
-                    uploaded_files.append({
-                        'message': 'Image uploaded successfully (processing failed)',
-                        'image_url': outfit.image_url
-                    })
-            except Exception as e:
-                print(f"Error saving file: {str(e)}")
-                return jsonify({'error': f'Error saving file: {str(e)}'}), 500
-    
-    if uploaded_files:
-        try:
-            db.session.commit()
-            return jsonify({
-                'message': f'Successfully uploaded {len(uploaded_files)} images',
-                'files': uploaded_files
-            })
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({'error': f'Database error: {str(e)}'}), 500
-    
-    return jsonify({'error': 'No valid files uploaded'}), 400
 
 @app.route('/recommend', methods=['POST'])
 @login_required
@@ -578,81 +389,6 @@ def update_location():
     except Exception as e:
         logger.error(f"[UPDATE LOCATION] Error updating location: {str(e)}")
         return jsonify({'error': str(e)}), 500
-
-def analyze_clothing_image(image_data):
-    try:
-        # Call OpenAI Vision API to analyze the image
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": """Analyze this clothing item and provide a natural, flowing description in the following format:
-
-For each clothing item that is visible in the image, describe it in a natural paragraph that includes:
-- Type and style (e.g., "loose-fitting crewneck t-shirt", "straight-fit cargo pants")
-- Color and material (1/2 words)
-- Key features and design elements
-- overall vibe (1/2 words)
-
-Format your response EXACTLY like this example (including the line breaks), but ONLY include sections that are visible in the image:
-
-<strong>Top:</strong> [Description]<br>
-<strong>Bottom:</strong> [Description]<br>
-<strong>Shoes/Accessories:</strong> [Description]
-
-Keep descriptions concise but detailed enough for AI outfit matching. Focus on the overall look and feel while including specific details about style, fit, and features. ONLY describe items that are clearly visible in the image."""
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{base64.b64encode(image_data).decode('utf-8')}"
-                            }
-                        }
-                    ]
-                }
-            ],
-            max_tokens=300
-        )
-        
-        # Get the response content
-        content = response.choices[0].message.content.strip()
-        
-        # Format the headers in bold and add proper line breaks
-        sections = ['Top:', 'Bottom:', 'Shoes/Accessories:']
-        formatted_content = content
-        
-        for section in sections:
-            if section in formatted_content:
-                # Replace the section header with a bold version
-                formatted_content = formatted_content.replace(section, f"<strong>{section}</strong>")
-                # Add a single line break after the section if it's not the last one
-                if section != sections[-1]:
-                    formatted_content = formatted_content.replace(f"<strong>{section}</strong>", f"<strong>{section}</strong><br>")
-        
-        return formatted_content
-    except Exception as e:
-        print(f"Error analyzing image: {str(e)}")
-        print(f"Error type: {type(e)}")
-        print(f"Error details: {e.__dict__ if hasattr(e, '__dict__') else 'No details available'}")
-        return "Error analyzing image. Please try again."
-
-def generate_outfit_recommendations(occasion, weather, user_preferences):
-    # Implement OpenAI API call for outfit recommendations
-    # This is a placeholder
-    return {
-        'outfits': [
-            {
-                'id': 1,
-                'items': ['blue shirt', 'khaki pants', 'brown shoes'],
-                'occasion': occasion,
-                'weather_appropriate': True
-            }
-        ]
-    }
 
 @app.route('/chat')
 @login_required

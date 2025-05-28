@@ -234,72 +234,88 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Handle preferences form submission
     if (preferencesForm) {
-        preferencesForm.addEventListener('submit', async (e) => {
+        preferencesForm.addEventListener('submit', async function(e) {
             e.preventDefault();
-            console.log('Form submitted');
+            console.log('=== Preferences Form Submission Start ===');
             
-            const formData = new FormData(preferencesForm);
-            console.log('Form data:', Object.fromEntries(formData));
+            // Get all form data
+            const formData = new FormData(this);
+            const formDataObj = Object.fromEntries(formData);
+            console.log('Raw form data:', formDataObj);
             
             // Get all checked styles
-            const styles = Array.from(document.querySelectorAll('input[name="styles"]:checked')).map(cb => cb.value);
+            const styleCheckboxes = document.querySelectorAll('input[name="styles"]:checked');
+            console.log('Style checkboxes found:', styleCheckboxes.length);
+            const styles = Array.from(styleCheckboxes).map(cb => cb.value);
             console.log('Selected styles:', styles);
             
-            // Get custom style if "other" is selected
-            const otherStyle = document.querySelector('input[name="other_style"]').value;
-            console.log('Other style:', otherStyle);
+            // Get other style input if checked
+            const otherStyleInput = document.querySelector('input[name="other_style"]');
+            console.log('Other style input element:', otherStyleInput);
+            console.log('Other style value:', otherStyleInput ? otherStyleInput.value : 'not found');
             
-            // Get hair color, using custom input if "other" is selected
-            const hairColor = formData.get('hair_color');
-            const hairColorText = hairColor === 'other' ? formData.get('other_hair_color') : hairColor;
-            console.log('Hair color:', hairColorText);
+            // Get hair color
+            const hairColorSelect = document.getElementById('hair_color');
+            console.log('Hair color select element:', hairColorSelect);
+            console.log('Hair color value:', hairColorSelect ? hairColorSelect.value : 'not found');
             
+            // Create preferences object
             const preferences = {
-                height: formData.get('height'),
-                weight: formData.get('weight'),
-                gender: formData.get('gender'),
+                styles: styles,
                 skin_tone_color: formData.get('skin_tone_color'),
                 skin_tone_text: formData.get('skin_tone_text'),
-                hair_color: hairColorText,
-                styles: styles,
-                other_style: otherStyle
+                hair_color: hairColorSelect ? hairColorSelect.value : null,
+                other_hair_color: formData.get('other_hair_color'),
+                height: formData.get('height'),
+                weight: formData.get('weight'),
+                gender: formData.get('gender')
             };
-            console.log('Preferences object:', preferences);
-
+            
+            // Add other style if provided
+            if (otherStyleInput && otherStyleInput.value.trim()) {
+                preferences.other_style = otherStyleInput.value.trim();
+            }
+            
+            console.log('Final preferences object:', preferences);
+            
             try {
-                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-                console.log('CSRF Token:', csrfToken);
+                // Get CSRF token from hidden input
+                const csrfToken = document.querySelector('input[name="csrf_token"]');
+                console.log('CSRF token element:', csrfToken);
+                console.log('CSRF token value:', csrfToken ? csrfToken.value : 'not found');
                 
-                if (!csrfToken) {
+                if (!csrfToken || !csrfToken.value) {
                     throw new Error('CSRF token not found');
                 }
-
+                
                 console.log('Sending request to /preferences');
                 const response = await fetch('/preferences', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
+                        'X-CSRFToken': csrfToken.value
                     },
                     body: JSON.stringify(preferences)
                 });
+                
                 console.log('Response status:', response.status);
-
+                const data = await response.json();
+                console.log('Response data:', data);
+                
                 if (response.ok) {
-                    const data = await response.json();
-                    console.log('Response data:', data);
-                    alert(data.message || 'Preferences saved successfully!');
-                    // Reload recommendations after saving preferences
-                    await getRecommendations();
+                    alert('Preferences saved successfully!');
                 } else {
-                    const errorData = await response.json();
-                    console.error('Error response:', errorData);
-                    throw new Error(errorData.error || 'Failed to save preferences');
+                    alert(data.error || 'Failed to save preferences');
                 }
             } catch (error) {
                 console.error('Error saving preferences:', error);
-                alert(error.message || 'Error saving preferences. Please try again.');
+                console.error('Error details:', {
+                    message: error.message,
+                    stack: error.stack
+                });
+                alert('Error saving preferences. Please try again.');
             }
+            console.log('=== Preferences Form Submission End ===');
         });
     }
 

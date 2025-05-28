@@ -56,7 +56,16 @@
             <div class="mb-8">
                 <h2 class="text-xl font-semibold mb-4">Style Preferences</h2>
                 <div class="bg-gray-50 p-4 rounded-lg">
-                    <pre class="whitespace-pre-wrap">{{ preferences | tojson(indent=2) }}</pre>
+                    <ul class="list-disc pl-6">
+                        <li><strong>Styles:</strong> {{ preferences.styles | join(', ') if preferences and preferences.styles else 'None' }}</li>
+                        <li><strong>Custom Style:</strong> {{ preferences.custom_style if preferences and preferences.custom_style else 'None' }}</li>
+                        <li><strong>Skin Tone Color:</strong> <span style="background: {{ preferences.skin_tone_color if preferences and preferences.skin_tone_color else '#fff' }}; padding: 0 8px; border-radius: 4px;">{{ preferences.skin_tone_color if preferences and preferences.skin_tone_color else 'None' }}</span></li>
+                        <li><strong>Skin Tone Text:</strong> {{ preferences.skin_tone_text if preferences and preferences.skin_tone_text else 'None' }}</li>
+                        <li><strong>Hair Color:</strong> {{ preferences.hair_color if preferences and preferences.hair_color else 'None' }}</li>
+                        {% if preferences and preferences.hair_color == 'other' %}
+                        <li><strong>Custom Hair Color:</strong> {{ preferences.hair_color_text if preferences and preferences.hair_color_text else 'None' }}</li>
+                        {% endif %}
+                    </ul>
                 </div>
             </div>
 

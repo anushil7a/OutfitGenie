@@ -357,55 +357,48 @@ def my_outfits():
 @login_required
 def save_preferences():
     try:
-        logger.info("Received preferences request")
+        print("=== Preferences Save Request Start ===")
         data = request.json
-        logger.info(f"Request data: {data}")
+        print("Received data:", data)
         
         if not data:
-            logger.error("No data provided in request")
+            print("Error: No data provided")
             return jsonify({'error': 'No data provided'}), 400
 
-        # Get selected styles
-        styles = data.get('styles', [])
-        logger.info(f"Selected styles: {styles}")
-        
-        # Create preferences dictionary with all user preferences
+        # Update physical attributes directly on the user
+        current_user.height = data.get('height')
+        current_user.weight = data.get('weight')
+        current_user.gender = data.get('gender')
+
+        # Only style-related fields go in preferences
         preferences = {
-            'styles': styles,
+            'styles': data.get('styles', []),
             'skin_tone_color': data.get('skin_tone_color'),
             'skin_tone_text': data.get('skin_tone_text'),
             'hair_color': data.get('hair_color'),
             'hair_color_text': data.get('other_hair_color') if data.get('hair_color') == 'other' else None,
-            'height': data.get('height'),
-            'weight': data.get('weight'),
-            'gender': data.get('gender')
         }
-        logger.info(f"Created preferences object: {preferences}")
-        
-        # If there's a custom style, add it to the preferences
         other_style = data.get('other_style')
         if other_style and other_style.strip():
-            if 'other' not in styles:
-                styles.append('other')
+            if 'other' not in preferences['styles']:
+                preferences['styles'].append('other')
             preferences['custom_style'] = other_style.strip()
-            logger.info(f"Added custom style: {other_style}")
-        
-        # Save all preferences in the JSON field
+
         current_user.preferences = preferences
-        logger.info(f"Updated user preferences for user {current_user.id}")
-        
         try:
             db.session.commit()
-            logger.info("Successfully committed preferences to database")
+            print("Successfully saved preferences to database")
+            print("Updated user preferences:", current_user.preferences)
             return jsonify({'message': 'Preferences saved successfully'})
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Database error while saving preferences: {str(e)}")
+            print("Database error:", str(e))
             return jsonify({'error': 'Failed to save preferences to database'}), 500
-            
     except Exception as e:
-        logger.error(f"Error saving preferences: {str(e)}")
+        print("Unexpected error:", str(e))
         return jsonify({'error': 'An unexpected error occurred while saving preferences'}), 500
+    finally:
+        print("=== Preferences Save Request End ===")
 
 @app.route('/delete-outfit/<int:outfit_id>', methods=['POST'])
 @login_required

@@ -839,6 +839,22 @@ def update_ai_notes():
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+@app.route('/update-outfit-description/<int:outfit_id>', methods=['POST'])
+@login_required
+def update_outfit_description(outfit_id):
+    outfit = Outfit.query.get_or_404(outfit_id)
+    if outfit.user_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    if not data or 'description' not in data:
+        return jsonify({'error': 'No description provided'}), 400
+    
+    outfit.analysis = data['description']
+    db.session.commit()
+    
+    return jsonify({'success': True}), 200
+
 @app.after_request
 def after_request(response):
     print(f"Response headers: {response.headers}")  # Debug print

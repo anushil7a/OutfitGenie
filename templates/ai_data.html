@@ -69,8 +69,24 @@
                         <div class="flex items-start space-x-4">
                             <img src="{{ outfit.image_url }}" alt="Clothing item" class="w-24 h-24 object-cover rounded-lg">
                             <div class="flex-1">
-                                <div class="prose prose-sm max-w-none">
-                                    {{ outfit.analysis | safe }}
+                                <div class="flex justify-between items-start mb-2">
+                                    <div class="prose prose-sm max-w-none" id="outfit-description-{{ outfit.id }}">
+                                        {{ outfit.analysis | safe }}
+                                    </div>
+                                    <button class="edit-description-btn px-2 py-1 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500" data-outfit-id="{{ outfit.id }}">
+                                        Edit
+                                    </button>
+                                </div>
+                                <div class="edit-description-form hidden" id="edit-form-{{ outfit.id }}">
+                                    <textarea class="w-full p-2 border rounded-lg mb-2" rows="4">{{ outfit.analysis | safe }}</textarea>
+                                    <div class="flex justify-end space-x-2">
+                                        <button class="cancel-edit-btn px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500" data-outfit-id="{{ outfit.id }}">
+                                            Cancel
+                                        </button>
+                                        <button class="save-description-btn px-3 py-1 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" data-outfit-id="{{ outfit.id }}">
+                                            Save
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -211,6 +227,61 @@
                 console.error('Error adding note:', error);
                 alert('Failed to add note. Please try again.');
             }
+        });
+
+        // Handle description editing
+        document.querySelectorAll('.edit-description-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                const outfitId = button.dataset.outfitId;
+                const descriptionDiv = document.getElementById(`outfit-description-${outfitId}`);
+                const editForm = document.getElementById(`edit-form-${outfitId}`);
+                
+                descriptionDiv.classList.add('hidden');
+                editForm.classList.remove('hidden');
+            });
+        });
+
+        document.querySelectorAll('.cancel-edit-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                const outfitId = button.dataset.outfitId;
+                const descriptionDiv = document.getElementById(`outfit-description-${outfitId}`);
+                const editForm = document.getElementById(`edit-form-${outfitId}`);
+                
+                descriptionDiv.classList.remove('hidden');
+                editForm.classList.add('hidden');
+            });
+        });
+
+        document.querySelectorAll('.save-description-btn').forEach(button => {
+            button.addEventListener('click', async () => {
+                const outfitId = button.dataset.outfitId;
+                const descriptionDiv = document.getElementById(`outfit-description-${outfitId}`);
+                const editForm = document.getElementById(`edit-form-${outfitId}`);
+                const textarea = editForm.querySelector('textarea');
+                const newDescription = textarea.value;
+                
+                try {
+                    const response = await fetch(`/update-outfit-description/${outfitId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                        },
+                        body: JSON.stringify({ description: newDescription })
+                    });
+                    
+                    if (response.ok) {
+                        descriptionDiv.innerHTML = newDescription;
+                        descriptionDiv.classList.remove('hidden');
+                        editForm.classList.add('hidden');
+                    } else {
+                        alert('Failed to update description. Please try again.');
+                    }
+                } catch (error) {
+                    console.error('Error updating description:', error);
+                    alert('Failed to update description. Please try again.');
+                }
+            });
         });
     </script>
 </body>

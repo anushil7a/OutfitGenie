@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentChatId = data.chat_id;
                 
                 // Add AI response to chat
-                addMessage('AI', data.response, true);
+                addMessage('AI', data.response, data.image_urls, true);
                 
                 // If there are recommended images, display them
                 if (data.image_urls && data.image_urls.length > 0) {
@@ -88,28 +88,99 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Function to add a message to the chat
-    function addMessage(sender, text, isAI = false) {
+    function addMessage(sender, text, imageUrls = [], isRecommendation = false) {
+        const messagesDiv = document.getElementById('chat-messages');
         const messageDiv = document.createElement('div');
-        messageDiv.className = 'flex items-start space-x-3';
+        messageDiv.className = `flex ${sender === 'You' ? 'justify-end' : 'justify-start'}`;
         
-        const avatar = document.createElement('div');
-        avatar.className = 'flex-shrink-0';
-        avatar.innerHTML = `
-            <div class="w-8 h-8 rounded-full ${isAI ? 'bg-indigo-600' : 'bg-gray-600'} flex items-center justify-center text-white">
-                ${isAI ? 'AI' : 'You'}
-            </div>
+        let messageContent = `
+            <div class="max-w-[70%] ${sender === 'You' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-800'} rounded-lg p-3">
+                <p class="text-sm">${text}</p>
         `;
         
-        const content = document.createElement('div');
-        content.className = 'flex-1 bg-gray-100 rounded-lg p-4';
-        content.innerHTML = `<p class="text-gray-800 whitespace-pre-line">${text}</p>`;
+        // Add images if present
+        if (imageUrls && imageUrls.length > 0) {
+            messageContent += '<div class="mt-2 flex flex-wrap gap-2">';
+            imageUrls.forEach(url => {
+                messageContent += `
+                    <img src="${url}" alt="Recommended item" class="w-20 h-20 object-cover rounded-lg">
+                `;
+            });
+            messageContent += '</div>';
+        }
         
-        messageDiv.appendChild(avatar);
-        messageDiv.appendChild(content);
-        chatMessages.appendChild(messageDiv);
+        // Add feedback buttons for AI recommendations
+        if (isRecommendation && sender === 'AI') {
+            // Get the user's question from the previous message
+            const messages = chatMessages.querySelectorAll('.flex');
+            const lastUserMessage = Array.from(messages)
+                .reverse()
+                .find(msg => msg.querySelector('.bg-indigo-600'))?.querySelector('.text-sm')?.textContent || '';
+            
+            messageContent += `
+                <div class="mt-2 flex justify-end space-x-2">
+                    <button class="feedback-btn px-2 py-1 text-xs rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300" data-feedback="like" data-recommendation="${text}" data-question="${lastUserMessage}">
+                        👍 Like
+                    </button>
+                    <button class="feedback-btn px-2 py-1 text-xs rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300" data-feedback="dislike" data-recommendation="${text}" data-question="${lastUserMessage}">
+                        👎 Dislike
+                    </button>
+                </div>
+            `;
+        }
         
-        // Scroll to bottom
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        messageContent += '</div>';
+        messageDiv.innerHTML = messageContent;
+        messagesDiv.appendChild(messageDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        
+        // Add event listeners to feedback buttons if they exist
+        if (isRecommendation && sender === 'AI') {
+            messageDiv.querySelectorAll('.feedback-btn').forEach(button => {
+                button.addEventListener('click', async () => {
+                    const feedback = button.dataset.feedback;
+                    const recommendation = button.dataset.recommendation;
+                    const question = button.dataset.question;
+                    
+                    try {
+                        const response = await fetch('/recommendation-feedback', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                            },
+                            body: JSON.stringify({
+                                recommendation: recommendation,
+                                feedback: feedback,
+                                question: question,
+                                context: {
+                                    timestamp: new Date().toISOString()
+                                }
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            // Disable both buttons
+                            messageDiv.querySelectorAll('.feedback-btn').forEach(btn => {
+                                btn.disabled = true;
+                                btn.classList.add('opacity-50');
+                            });
+                            
+                            // Highlight the selected button
+                            button.classList.remove('bg-gray-200');
+                            button.classList.add(feedback === 'like' ? 'bg-green-200' : 'bg-red-200');
+                        } else {
+                            const errorData = await response.json();
+                            console.error('Error response:', errorData);
+                            alert('Failed to save feedback. Please try again.');
+                        }
+                    } catch (error) {
+                        console.error('Error saving feedback:', error);
+                        alert('Failed to save feedback. Please try again.');
+                    }
+                });
+            });
+        }
     }
 
     // Function to load chat history
@@ -187,7 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Add messages from the loaded chat
             data.messages.forEach(message => {
-                addMessage(message.sender, message.text, message.sender === 'AI');
+                addMessage(message.sender, message.text, message.image_urls, message.sender === 'AI');
             });
             
             currentChatId = chatId;

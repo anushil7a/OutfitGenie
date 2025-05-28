@@ -73,6 +73,7 @@ class User(UserMixin, db.Model):
     ai_notes = db.Column(db.Text)  # Add AI notes field
     outfits = db.relationship('Outfit', backref='user', lazy=True)
     chats = db.relationship('Chat', backref='user', lazy=True)
+    feedback = db.relationship('RecommendationFeedback', backref='user', lazy=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -103,6 +104,25 @@ class Chat(db.Model):
             'id': self.id,
             'preview': self.messages[0]['text'][:50] + '...' if self.messages else 'New Chat',
             'timestamp': self.created_at.isoformat()
+        }
+
+class RecommendationFeedback(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    recommendation = db.Column(db.Text, nullable=False)  # The recommendation text
+    question = db.Column(db.Text, nullable=False)  # The user's question that led to the recommendation
+    feedback = db.Column(db.String(10), nullable=False)  # 'like' or 'dislike'
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    context = db.Column(db.JSON)  # Store context like occasion, weather, etc.
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'recommendation': self.recommendation,
+            'question': self.question,
+            'feedback': self.feedback,
+            'created_at': self.created_at.isoformat(),
+            'context': self.context
         }
 
 @login_manager.user_loader
@@ -672,6 +692,16 @@ def chat_message():
                 'weather': outfit.weather
             })
 
+        # Get user's past feedback
+        feedback = RecommendationFeedback.query.filter_by(user_id=current_user.id).all()
+        feedback_info = []
+        for entry in feedback:
+            feedback_info.append({
+                'recommendation': entry.recommendation,
+                'feedback': entry.feedback,
+                'context': entry.context
+            })
+
         # Create a prompt for the AI based on the mode
         print(f"wardrobe_only: {wardrobe_only}")
         if wardrobe_only:
@@ -689,7 +719,14 @@ Gender: {current_user.gender}
 User's AI Notes:
 {current_user.ai_notes or 'No additional notes provided.'}
 
-IMPORTANT: Only recommend outfits using the clothes the user has already uploaded. Do not suggest items they don't own.
+User's past feedback on recommendations:
+{json.dumps(feedback_info, indent=2)}
+
+IMPORTANT: 
+1. Only recommend outfits using the clothes the user has already uploaded.
+2. Consider the user's past feedback when making recommendations.
+3. Try to avoid recommending similar outfits that were previously disliked.
+4. Prioritize styles and combinations that were previously liked.
 
 Please provide a VERY SHORT response (1-2 sentences maximum) that:
 1. Directly answers their question
@@ -716,7 +753,15 @@ Gender: {current_user.gender}
 User's AI Notes:
 {current_user.ai_notes or 'No additional notes provided.'}
 
+User's past feedback on recommendations:
+{json.dumps(feedback_info, indent=2)}
+
 You can recommend both items the user owns and items they don't own yet. When suggesting items they don't own, clearly indicate this in your response.
+
+IMPORTANT: 
+1. Consider the user's past feedback when making recommendations.
+2. Try to avoid recommending similar outfits that were previously disliked.
+3. Prioritize styles and combinations that were previously liked.
 
 Please provide a VERY SHORT response (1-2 sentences maximum) that:
 1. Directly answers their question
@@ -767,7 +812,7 @@ Response:"""
             # Add new messages
             chat.messages.extend([
                 {'sender': 'You', 'text': message},
-                {'sender': 'AI', 'text': response_data['response']}
+                {'sender': 'AI', 'text': response_data['response'], 'image_urls': response_data['image_urls']}
             ])
             
             db.session.add(chat)
@@ -818,11 +863,16 @@ def ai_data():
     location = session.get('location')
     weather = session.get('weather_data')
     
+    # Get recommendation feedback
+    feedback = RecommendationFeedback.query.filter_by(user_id=current_user.id)\
+        .order_by(RecommendationFeedback.created_at.desc()).all()
+    
     return render_template('ai_data.html',
                          outfits=outfits,
                          location=location,
                          weather=weather,
-                         preferences=current_user.preferences)
+                         preferences=current_user.preferences,
+                         recommendation_feedback=feedback)
 
 @app.route('/update-ai-notes', methods=['POST'])
 @login_required
@@ -854,6 +904,81 @@ def update_outfit_description(outfit_id):
     db.session.commit()
     
     return jsonify({'success': True}), 200
+
+@app.route('/recommendation-feedback', methods=['POST'])
+@login_required
+def save_recommendation_feedback():
+    try:
+        data = request.json
+        logger.info(f"Received feedback data: {data}")
+        
+        recommendation = data.get('recommendation')
+        question = data.get('question')
+        feedback = data.get('feedback')  # 'like' or 'dislike'
+        context = data.get('context', {})  # Optional context data
+        
+        if not recommendation:
+            logger.error("No recommendation provided")
+            return jsonify({'error': 'No recommendation provided'}), 400
+            
+        if not question:
+            logger.error("No question provided")
+            return jsonify({'error': 'No question provided'}), 400
+            
+        if not feedback or feedback not in ['like', 'dislike']:
+            logger.error(f"Invalid feedback value: {feedback}")
+            return jsonify({'error': 'Invalid feedback value'}), 400
+        
+        try:
+            # Check if feedback already exists for this recommendation
+            existing_feedback = RecommendationFeedback.query.filter_by(
+                user_id=current_user.id,
+                recommendation=recommendation
+            ).first()
+            
+            if existing_feedback:
+                # Update existing feedback
+                existing_feedback.feedback = feedback
+                existing_feedback.context = context
+                existing_feedback.created_at = datetime.utcnow()
+                logger.info(f"Updated existing feedback for user {current_user.id}")
+            else:
+                # Create new feedback
+                feedback_entry = RecommendationFeedback(
+                    user_id=current_user.id,
+                    recommendation=recommendation,
+                    question=question,
+                    feedback=feedback,
+                    context=context
+                )
+                db.session.add(feedback_entry)
+                logger.info(f"Created new feedback for user {current_user.id}")
+            
+            db.session.commit()
+            return jsonify({'message': 'Feedback saved successfully'})
+        except Exception as db_error:
+            db.session.rollback()
+            logger.error(f"Database error: {str(db_error)}")
+            return jsonify({'error': f'Database error: {str(db_error)}'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error in save_recommendation_feedback: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/recommendation-feedback/<int:feedback_id>', methods=['DELETE'])
+@login_required
+def delete_recommendation_feedback(feedback_id):
+    try:
+        feedback = RecommendationFeedback.query.get_or_404(feedback_id)
+        if feedback.user_id != current_user.id:
+            return jsonify({'error': 'Unauthorized'}), 403
+            
+        db.session.delete(feedback)
+        db.session.commit()
+        return jsonify({'message': 'Feedback deleted successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 @app.after_request
 def after_request(response):

@@ -63,19 +63,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Add AI response to chat
                 addMessage('AI', data.response, data.image_urls, true);
                 
-                // If there are recommended images, display them
-                if (data.image_urls && data.image_urls.length > 0) {
-                    const imageContainer = document.createElement('div');
-                    imageContainer.className = 'mt-4 grid grid-cols-2 gap-4';
-                    data.image_urls.forEach(url => {
-                        const img = document.createElement('img');
-                        img.src = url;
-                        img.className = 'w-full h-48 object-cover rounded-lg';
-                        imageContainer.appendChild(img);
-                    });
-                    chatMessages.appendChild(imageContainer);
-                }
-
                 // Update chat history
                 loadChatHistory();
             } else {

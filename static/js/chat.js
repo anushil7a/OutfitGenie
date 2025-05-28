@@ -256,4 +256,39 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error loading chat:', error);
         }
     }
+
+    // Modal logic for full-size images in chat
+    document.getElementById('chat-messages').addEventListener('click', function(e) {
+        if (e.target.tagName === 'IMG') {
+            const imageUrl = e.target.src;
+            const overlay = document.createElement('div');
+            overlay.style.position = 'fixed';
+            overlay.style.top = '0';
+            overlay.style.left = '0';
+            overlay.style.width = '100%';
+            overlay.style.height = '100%';
+            overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            overlay.style.display = 'flex';
+            overlay.style.justifyContent = 'center';
+            overlay.style.alignItems = 'center';
+            overlay.style.zIndex = '1000';
+            overlay.style.cursor = 'pointer';
+
+            const fullImg = document.createElement('img');
+            fullImg.src = imageUrl;
+            fullImg.style.maxWidth = '90%';
+            fullImg.style.maxHeight = '90%';
+            fullImg.style.objectFit = 'contain';
+
+            overlay.appendChild(fullImg);
+            document.body.appendChild(overlay);
+
+            e.target.style.visibility = 'hidden';
+
+            overlay.addEventListener('click', function() {
+                document.body.removeChild(overlay);
+                e.target.style.visibility = 'visible';
+            });
+        }
+    });
 }); 

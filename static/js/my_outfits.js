@@ -29,31 +29,69 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const id of ids) await window.deleteOutfit(id, false);
     });
 
-    // Modal logic for full-size image
-    const imageLinks = document.querySelectorAll('.outfit-image-link');
-    const modal = document.getElementById('image-modal');
-    const modalImg = document.getElementById('modal-image');
-    const closeModalBtn = document.getElementById('close-modal');
+    // Modal logic for full-size image (using .modal-trigger class)
+    const modalTriggers = document.querySelectorAll('.modal-trigger');
+    let modalContainer = document.getElementById('my-image-modal');
 
-    imageLinks.forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            const url = link.getAttribute('data-image-url');
-            modalImg.src = url;
-            modal.classList.remove('hidden');
+    if (!modalContainer) {
+        modalContainer = document.createElement('div');
+        modalContainer.id = 'my-image-modal';
+        modalContainer.style.position = 'fixed';
+        modalContainer.style.top = '0';
+        modalContainer.style.left = '0';
+        modalContainer.style.width = '100%';
+        modalContainer.style.height = '100%';
+        modalContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        modalContainer.style.display = 'none';
+        modalContainer.style.justifyContent = 'center';
+        modalContainer.style.alignItems = 'center';
+        modalContainer.style.zIndex = '9999';
+        modalContainer.style.cursor = 'pointer';
+        modalContainer.style.transition = 'opacity 0.3s ease-in-out';
+        modalContainer.style.opacity = '0';
+
+        const modalImage = document.createElement('img');
+        modalImage.id = 'my-modal-image';
+        modalImage.style.maxWidth = '90%';
+        modalImage.style.maxHeight = '90%';
+        modalImage.style.objectFit = 'contain';
+        modalImage.style.cursor = 'default';
+
+        modalContainer.appendChild(modalImage);
+        document.body.appendChild(modalContainer);
+
+        modalContainer.addEventListener('click', function(event) {
+            if (event.target === modalContainer) {
+                modalContainer.style.opacity = '0';
+                setTimeout(function() {
+                    modalContainer.style.display = 'none';
+                }, 300);
+            }
         });
-    });
-
-    function closeModal() {
-        modal.classList.add('hidden');
-        modalImg.src = '';
     }
-    closeModalBtn.addEventListener('click', closeModal);
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeModal();
-    });
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeModal();
+
+    modalTriggers.forEach(function(triggerElement) {
+        const imageLinkElement = triggerElement.previousElementSibling;
+        let imageUrl = null;
+        if (imageLinkElement && imageLinkElement.tagName === 'A') {
+            const imgElement = imageLinkElement.querySelector('img');
+            if (imgElement) {
+                imageUrl = imgElement.src;
+            }
+        }
+        if (imageUrl) {
+            triggerElement.addEventListener('click', function() {
+                const modalContainer = document.getElementById('my-image-modal');
+                const modalImage = document.getElementById('my-modal-image');
+                if (modalContainer && modalImage) {
+                    modalImage.src = imageUrl;
+                    modalContainer.style.display = 'flex';
+                    setTimeout(function() {
+                        modalContainer.style.opacity = '1';
+                    }, 10);
+                }
+            });
+        }
     });
 });
 

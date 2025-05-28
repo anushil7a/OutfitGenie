@@ -128,7 +128,7 @@ def get_recommendations():
 
 @app.route('/feedback', methods=['POST'])
 @login_required
-def save_feedback():
+def save_feedback(): #is it being used? no
     data = request.json
     outfit_id = data.get('outfit_id')
     rating = data.get('rating')
@@ -140,31 +140,6 @@ def save_feedback():
         return jsonify({'message': 'Feedback saved successfully'})
     
     return jsonify({'error': 'Outfit not found'}), 404
-
-@app.route('/my-outfits')
-@login_required
-def my_outfits():
-    try:
-        # Get page number from query parameters, default to 1
-        page = request.args.get('page', 1, type=int)
-        per_page = 6  # Number of items per page
-        
-        # Get outfits for the current user with pagination
-        outfits_pagination = Outfit.query.filter_by(user_id=current_user.id)\
-            .order_by(Outfit.created_at.desc())\
-            .paginate(page=page, per_page=per_page, error_out=False)
-        
-        # Check if the uploads directory exists
-        uploads_dir = os.path.join(app.root_path, 'static', 'uploads', str(current_user.id))
-        if not os.path.exists(uploads_dir):
-            os.makedirs(uploads_dir)
-            print(f"Created uploads directory: {uploads_dir}")  # Debug print
-        
-        return render_template('my_outfits.html', outfits=outfits_pagination.items, pagination=outfits_pagination)
-    except Exception as e:
-        print(f"Error in my_outfits route: {str(e)}")  # Debug print
-        flash('Error loading outfits. Please try again.')
-        return redirect(url_for('index'))
 
 @app.route('/preferences', methods=['POST'])
 @login_required
@@ -213,142 +188,6 @@ def save_preferences():
         return jsonify({'error': 'An unexpected error occurred while saving preferences'}), 500
     finally:
         print("=== Preferences Save Request End ===")
-
-@app.route('/delete-outfit/<int:outfit_id>', methods=['POST'])
-@login_required
-def delete_outfit(outfit_id):
-    print(f"Attempting to delete outfit {outfit_id} for user {current_user.id}")
-    try:
-        outfit = Outfit.query.get_or_404(outfit_id)
-        print(f"Found outfit: {outfit.id}, owned by user {outfit.user_id}")
-        
-        # Verify ownership
-        if outfit.user_id != current_user.id:
-            print(f"Unauthorized: outfit belongs to user {outfit.user_id}, current user is {current_user.id}")
-            return jsonify({'error': 'Unauthorized'}), 403
-        
-        # Delete the image file
-        if outfit.image_url:
-            try:
-                # Convert URL to filesystem path
-                image_path = os.path.join(app.root_path, outfit.image_url.lstrip('/'))
-                print(f"Attempting to delete image file: {image_path}")
-                if os.path.exists(image_path):
-                    os.remove(image_path)
-                    print(f"Successfully deleted image file: {image_path}")
-                else:
-                    print(f"Image file not found: {image_path}")
-            except Exception as e:
-                print(f"Error deleting image file: {str(e)}")
-                # Continue with database deletion even if file deletion fails
-        
-        # Delete from database
-        print("Deleting outfit from database")
-        db.session.delete(outfit)
-        db.session.commit()
-        print("Successfully deleted outfit from database")
-        
-        return jsonify({'message': 'Outfit deleted successfully'})
-    except Exception as e:
-        db.session.rollback()
-        print(f"Error deleting outfit: {str(e)}")
-        return jsonify({'error': f'Failed to delete outfit: {str(e)}'}), 500
-
-def get_weather_data(location="London"):
-    """Get weather data for a specific location"""
-    try:
-        logger.info(f"[WEATHER API CALL] Fetching weather data for {location}")
-        params = {
-            'q': location,
-            'appid': WEATHER_API_KEY,
-            'units': 'imperial'  # Use Fahrenheit
-        }
-        response = requests.get(WEATHER_API_URL, params=params)
-        response.raise_for_status()
-        data = response.json()
-        
-        # Create a dictionary with all required fields
-        weather_data = {
-            'temperature': int(round(data['main']['temp'])),
-            'feels_like': int(round(data['main']['feels_like'])),
-            'condition': str(data['weather'][0]['main']),
-            'description': str(data['weather'][0]['description']),
-            'icon': f"http://openweathermap.org/img/wn/{data['weather'][0]['icon']}@2x.png",
-            'humidity': int(data['main']['humidity']),
-            'wind_speed': int(round(data['wind']['speed'] * 2.237))  # Convert m/s to mph
-        }
-        
-        logger.info(f"[WEATHER DATA] Successfully fetched weather data: {weather_data}")
-        return weather_data
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error fetching weather data: {str(e)}")
-        return None
-    except Exception as e:
-        logger.error(f"Unexpected error in get_weather_data: {str(e)}")
-        return None
-
-def get_weather_recommendations(weather_data, user_preferences=None):
-    """Generate outfit recommendations based on weather and user's uploaded clothes."""
-    try:
-        # Get user's uploaded outfits
-        user_outfits = Outfit.query.filter_by(user_id=current_user.id).all()
-        outfits_info = []
-        for outfit in user_outfits:
-            outfits_info.append({
-                'image_url': outfit.image_url,
-                'analysis': outfit.analysis,
-                'occasion': outfit.occasion,
-                'weather': outfit.weather
-            })
-
-        # Create a prompt for the AI
-        prompt = f"""Based on the current weather conditions and the user's uploaded clothes, recommend the perfect outfit.
-
-Current Weather:
-- Temperature: {weather_data['temperature']}°F
-- Feels like: {weather_data['feels_like']}°F
-- Condition: {weather_data['description']}
-- Humidity: {weather_data['humidity']}%
-- Wind Speed: {weather_data['wind_speed']} mph
-
-User's uploaded clothes:
-{json.dumps(outfits_info, indent=2)}
-
-User's preferences:
-{json.dumps(user_preferences, indent=2) if user_preferences else 'No preferences set'}
-
-Please recommend an outfit using ONLY the clothes the user has uploaded. Format your response as JSON with these fields:
-1. "outfit": A brief description of the recommended outfit
-2. "reasoning": Why this outfit is suitable for the current weather
-3. "items": List of specific items from the user's uploaded clothes that make up this outfit
-
-Response:"""
-
-        # Return placeholder recommendation for now
-        return {
-            "outfit": "A comfortable layered outfit suitable for the current weather.",
-            "reasoning": "This outfit is chosen based on the current temperature and conditions.",
-            "items": ["Item 1", "Item 2", "Item 3"]
-        }
-
-        # Comment out GPT call for now
-        # try:
-        #     response = client.chat.completions.create(
-        #         model="gpt-4o-mini",
-        #         messages=[
-        #             {"role": "system", "content": "You are a fashion assistant that recommends outfits based on weather conditions and available clothes."},
-        #             {"role": "user", "content": prompt}
-        #         ],
-        #         max_tokens=300
-        #     )
-        #     return json.loads(response.choices[0].message.content)
-        # except Exception as e:
-        #     logger.error(f"Error with GPT call: {str(e)}")
-        #     return None
-
-    except Exception as e:
-        logger.error(f"Error generating weather recommendations: {str(e)}")
-        return None
 
 @app.route('/update-location', methods=['POST'])
 def update_location():
@@ -437,22 +276,6 @@ def update_ai_notes():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
-
-@app.route('/update-outfit-description/<int:outfit_id>', methods=['POST'])
-@login_required
-def update_outfit_description(outfit_id):
-    outfit = Outfit.query.get_or_404(outfit_id)
-    if outfit.user_id != current_user.id:
-        return jsonify({'error': 'Unauthorized'}), 403
-    
-    data = request.get_json()
-    if not data or 'description' not in data:
-        return jsonify({'error': 'No description provided'}), 400
-    
-    outfit.analysis = data['description']
-    db.session.commit()
-    
-    return jsonify({'success': True}), 200
 
 @app.route('/recommendation-feedback', methods=['POST'])
 @login_required

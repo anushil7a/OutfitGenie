@@ -16,7 +16,7 @@
                 <div class="space-x-4">
                     {% if current_user.is_authenticated %}
                         <a href="{{ url_for('index') }}" class="text-gray-600 hover:text-gray-800">Home</a>
-                        <a href="{{ url_for('my_outfits') }}" class="text-indigo-600 font-semibold">My Outfits</a>
+                        <a href="{{ url_for('outfits.my_outfits') }}" class="text-indigo-600 font-semibold">My Outfits</a>
                         <a href="{{ url_for('chat.chat') }}" class="text-gray-600 hover:text-gray-800">Chat</a>
                         <a href="{{ url_for('ai_data') }}" class="text-gray-600 hover:text-gray-800">AI Data</a>
                         <a href="{{ url_for('auth.logout') }}" class="text-gray-600 hover:text-gray-800">Logout</a>
@@ -81,7 +81,7 @@
                 {% if pagination.pages > 1 %}
                     <div class="mt-8 flex justify-center space-x-2">
                         {% if pagination.has_prev %}
-                            <a href="{{ url_for('my_outfits', page=pagination.prev_num) }}" class="px-4 py-2 bg-white text-indigo-600 rounded-md hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                            <a href="{{ url_for('outfits.my_outfits', page=pagination.prev_num) }}" class="px-4 py-2 bg-white text-indigo-600 rounded-md hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
                                 Previous
                             </a>
                         {% endif %}
@@ -91,7 +91,7 @@
                                 {% if page_num == pagination.page %}
                                     <span class="px-4 py-2 bg-indigo-600 text-white rounded-md">{{ page_num }}</span>
                                 {% else %}
-                                    <a href="{{ url_for('my_outfits', page=page_num) }}" class="px-4 py-2 bg-white text-indigo-600 rounded-md hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                                    <a href="{{ url_for('outfits.my_outfits', page=page_num) }}" class="px-4 py-2 bg-white text-indigo-600 rounded-md hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
                                         {{ page_num }}
                                     </a>
                                 {% endif %}
@@ -101,7 +101,7 @@
                         {% endfor %}
                         
                         {% if pagination.has_next %}
-                            <a href="{{ url_for('my_outfits', page=pagination.next_num) }}" class="px-4 py-2 bg-white text-indigo-600 rounded-md hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                            <a href="{{ url_for('outfits.my_outfits', page=pagination.next_num) }}" class="px-4 py-2 bg-white text-indigo-600 rounded-md hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
                                 Next
                             </a>
                         {% endif %}

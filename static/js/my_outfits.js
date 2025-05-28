@@ -28,6 +28,33 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!confirm(`Delete ${ids.length} outfit(s)? This can't be undone.`)) return;
         for (const id of ids) await window.deleteOutfit(id, false);
     });
+
+    // Modal logic for full-size image
+    const imageLinks = document.querySelectorAll('.outfit-image-link');
+    const modal = document.getElementById('image-modal');
+    const modalImg = document.getElementById('modal-image');
+    const closeModalBtn = document.getElementById('close-modal');
+
+    imageLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const url = link.getAttribute('data-image-url');
+            modalImg.src = url;
+            modal.classList.remove('hidden');
+        });
+    });
+
+    function closeModal() {
+        modal.classList.add('hidden');
+        modalImg.src = '';
+    }
+    closeModalBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeModal();
+    });
 });
 
 // Single-card actions

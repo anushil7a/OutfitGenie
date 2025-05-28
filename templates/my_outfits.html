@@ -55,8 +55,10 @@
                         <div class="relative group" data-outfit-id="{{ outfit.id }}">
                             <div class="relative">
                                 <input type="checkbox" class="outfit-checkbox absolute top-2 left-2 z-10 w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" data-outfit-id="{{ outfit.id }}">
-                                <img src="{{ outfit.image_url }}" alt="Outfit" class="w-full h-64 object-cover rounded-lg">
-                                <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-lg">
+                                <a href="#" class="outfit-image-link" data-image-url="{{ outfit.image_url }}">
+                                    <img src="{{ outfit.image_url }}" alt="Outfit" class="w-full h-64 object-cover rounded-lg">
+                                </a>
+                                <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-lg modal-trigger">
                                     <div class="absolute top-2 right-2 flex space-x-2">
                                         <button type="button" class="favorite-btn bg-white text-gray-600 rounded-full p-1 hover:bg-yellow-400 hover:text-yellow-600 transition-colors duration-200 {% if outfit.rating == 1 %}bg-yellow-400 text-yellow-600{% endif %}" onclick="toggleFavorite({{ outfit.id }})">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -115,6 +117,86 @@
         </div>
     </main>
 
-    <script src="{{ url_for('static', filename='js/my_outfits.js') }}"></script>
+    <!-- Add the new modal script for image click -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Use the new modal-trigger class for all overlays
+      const modalTriggers = document.querySelectorAll('.modal-trigger');
+
+      // Check if a modal with a specific ID already exists to avoid creating duplicates
+      let modalContainer = document.getElementById('my-image-modal'); // Using a more generic ID
+
+      if (!modalContainer) {
+        // Create modal container
+        modalContainer = document.createElement('div');
+        modalContainer.id = 'my-image-modal';
+        modalContainer.style.position = 'fixed';
+        modalContainer.style.top = '0';
+        modalContainer.style.left = '0';
+        modalContainer.style.width = '100%';
+        modalContainer.style.height = '100%';
+        modalContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        modalContainer.style.display = 'none'; // Hidden by default
+        modalContainer.style.justifyContent = 'center';
+        modalContainer.style.alignItems = 'center';
+        modalContainer.style.zIndex = '9999'; // High z-index
+        modalContainer.style.cursor = 'pointer'; // Indicate clickable area to close
+        modalContainer.style.transition = 'opacity 0.3s ease-in-out'; // Optional: add transition
+        modalContainer.style.opacity = '0'; // Start hidden for transition
+
+        // Create image element
+        const modalImage = document.createElement('img');
+        modalImage.id = 'my-modal-image';
+        modalImage.style.maxWidth = '90%';
+        modalImage.style.maxHeight = '90%';
+        modalImage.style.objectFit = 'contain';
+        modalImage.style.cursor = 'default'; // Change cursor back for the image
+
+        // Append image to container, container to body
+        modalContainer.appendChild(modalImage);
+        document.body.appendChild(modalContainer);
+
+        // Add click listener to hide modal
+        modalContainer.addEventListener('click', function(event) {
+          // Hide modal only if the click was directly on the container, not the image
+          if (event.target === modalContainer) {
+            modalContainer.style.opacity = '0'; // Fade out
+            setTimeout(function() {
+              modalContainer.style.display = 'none'; // Hide after transition
+            }, 300); // Match transition duration
+          }
+        });
+      }
+
+      // Add click listeners to all trigger elements
+      modalTriggers.forEach(function(triggerElement) {
+        // Find the image URL from the previous sibling anchor tag
+        const imageLinkElement = triggerElement.previousElementSibling;
+        let imageUrl = null;
+
+        if (imageLinkElement && imageLinkElement.tagName === 'A') {
+          const imgElement = imageLinkElement.querySelector('img');
+          if (imgElement) {
+            imageUrl = imgElement.src;
+          }
+        }
+
+        if (imageUrl) {
+          triggerElement.addEventListener('click', function() {
+            const modalContainer = document.getElementById('my-image-modal');
+            const modalImage = document.getElementById('my-modal-image');
+            if (modalContainer && modalImage) {
+              modalImage.src = imageUrl; // Set the image source
+              modalContainer.style.display = 'flex'; // Show the modal
+              // Use a small delay to allow display:flex to apply before transitioning opacity
+              setTimeout(function() {
+                 modalContainer.style.opacity = '1'; // Fade in
+              }, 10);
+            }
+          });
+        }
+      });
+    });
+    </script>
 </body>
 </html> 

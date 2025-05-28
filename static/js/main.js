@@ -232,6 +232,26 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Handle style preferences
+    const styleOtherCheckbox = document.querySelector('input[name="styles"][value="other"]');
+    const otherStyleContainer = document.getElementById('other-style-container');
+    const otherStyleInput = document.querySelector('input[name="other_style"]');
+
+    if (styleOtherCheckbox && otherStyleContainer) {
+        // Check if "other" is checked on page load
+        if (styleOtherCheckbox.checked) {
+            otherStyleContainer.classList.remove('hidden');
+        }
+
+        // Show/hide custom style input when "other" is checked/unchecked
+        styleOtherCheckbox.addEventListener('change', function() {
+            otherStyleContainer.classList.toggle('hidden', !this.checked);
+            if (!this.checked && otherStyleInput) {
+                otherStyleInput.value = '';
+            }
+        });
+    }
+
     // Handle preferences form submission
     if (preferencesForm) {
         preferencesForm.addEventListener('submit', async function(e) {
@@ -271,9 +291,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 gender: formData.get('gender')
             };
             
-            // Add other style if provided
-            if (otherStyleInput && otherStyleInput.value.trim()) {
+            // Only include custom_style if 'other' is checked
+            if (styleOtherCheckbox && styleOtherCheckbox.checked && otherStyleInput && otherStyleInput.value.trim()) {
                 preferences.other_style = otherStyleInput.value.trim();
+            } else {
+                preferences.other_style = undefined;
             }
             
             console.log('Final preferences object:', preferences);
@@ -571,22 +593,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('Error deleting outfits:', error);
                 alert('Error deleting outfits. Please try again.');
             }
-        });
-    }
-
-    // Handle style preferences
-    const styleOtherCheckbox = document.querySelector('input[name="styles"][value="other"]');
-    const otherStyleContainer = document.getElementById('other-style-container');
-
-    if (styleOtherCheckbox && otherStyleContainer) {
-        // Check if "other" is checked on page load
-        if (styleOtherCheckbox.checked) {
-            otherStyleContainer.classList.remove('hidden');
-        }
-
-        // Show/hide custom style input when "other" is checked/unchecked
-        styleOtherCheckbox.addEventListener('change', function() {
-            otherStyleContainer.classList.toggle('hidden', !this.checked);
         });
     }
 

@@ -371,18 +371,19 @@ def save_preferences():
         current_user.gender = data.get('gender')
 
         # Only style-related fields go in preferences
+        styles = data.get('styles', [])
         preferences = {
-            'styles': data.get('styles', []),
+            'styles': styles,
             'skin_tone_color': data.get('skin_tone_color'),
             'skin_tone_text': data.get('skin_tone_text'),
             'hair_color': data.get('hair_color'),
             'hair_color_text': data.get('other_hair_color') if data.get('hair_color') == 'other' else None,
         }
+        # Only save custom_style if 'other' is in styles
         other_style = data.get('other_style')
-        if other_style and other_style.strip():
-            if 'other' not in preferences['styles']:
-                preferences['styles'].append('other')
+        if 'other' in styles and other_style and other_style.strip():
             preferences['custom_style'] = other_style.strip()
+        # If 'other' is not checked, do not save custom_style
 
         current_user.preferences = preferences
         try:

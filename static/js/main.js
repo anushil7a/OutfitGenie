@@ -232,6 +232,30 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    if (clothingUpload && confirmUpload) {
+        confirmUpload.addEventListener('click', function(e) {
+            const files = clothingUpload.files;
+            let totalSize = 0;
+            for (const file of files) totalSize += file.size;
+            if (totalSize > 16 * 1024 * 1024) { // 16MB
+                alert('Total upload size exceeds 16MB. Please select fewer or smaller files.');
+                e.preventDefault();
+                return false;
+            }
+        });
+    }
+
+    if (clothingUpload) {
+        clothingUpload.addEventListener('change', function() {
+            let totalSize = 0;
+            for (const file of clothingUpload.files) totalSize += file.size;
+            if (totalSize > 16 * 1024 * 1024) {
+                alert('Total upload size exceeds 16MB. Please select fewer or smaller files.');
+                clothingUpload.value = '';
+            }
+        });
+    }
+
     // Handle style preferences
     const styleOtherCheckbox = document.querySelector('input[name="styles"][value="other"]');
     const otherStyleContainer = document.getElementById('other-style-container');

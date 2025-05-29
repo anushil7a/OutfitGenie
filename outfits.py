@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def analyze_clothing_image(image_data):
     try:
-        # Call OpenAI Vision API to analyze the image
+        # Call OpenAI Vision API
         client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
         response = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -24,7 +24,7 @@ def analyze_clothing_image(image_data):
                     "content": [
                         {
                             "type": "text",
-                            "text": """Analyze this clothing item and provide a natural, flowing description in the following format:
+                            "text": '''Analyze this clothing item and provide a natural, flowing description in the following format:
 
 For each clothing item that is visible in the image, describe it in a natural paragraph that includes:
 - Type and style (e.g., "loose-fitting crewneck t-shirt", "straight-fit cargo pants")
@@ -34,11 +34,13 @@ For each clothing item that is visible in the image, describe it in a natural pa
 
 Format your response EXACTLY like this example (including the line breaks), but ONLY include sections that are visible in the image:
 
-<strong>Top:</strong> [Description]<br>
-<strong>Bottom:</strong> [Description]<br>
-<strong>Shoes/Accessories:</strong> [Description]
+<strong>[Short Title (3-4 words)]:</strong> [Description]<br>
+<strong>[Short Title (3-4 words)]:</strong> [Description]<br>
+<strong>[Short Title (3-4 words)]:</strong> [Description]
 
-Keep descriptions concise but detailed enough for AI outfit matching. Focus on the overall look and feel while including specific details about style, fit, and features. ONLY describe items that are clearly visible in the image."""
+Where the short title is a concise, descriptive name for the item (e.g., 'Yellow and black Jersey', 'Wireless earbuds', 'Blue jeans').
+
+Keep descriptions concise but detailed enough for AI outfit matching. Focus on the overall look and feel while including specific details about style, fit, and features. ONLY describe items that are clearly visible in the image.'''
                         },
                         {
                             "type": "image_url",
@@ -55,19 +57,8 @@ Keep descriptions concise but detailed enough for AI outfit matching. Focus on t
         # Get the response content
         content = response.choices[0].message.content.strip()
         
-        # Format the headers in bold and add proper line breaks
-        sections = ['Top:', 'Bottom:', 'Shoes/Accessories:']
-        formatted_content = content
-        
-        for section in sections:
-            if section in formatted_content:
-                # Replace the section header with a bold version
-                formatted_content = formatted_content.replace(section, f"<strong>{section}</strong>")
-                # Add a single line break after the section if it's not the last one
-                if section != sections[-1]:
-                    formatted_content = formatted_content.replace(f"<strong>{section}</strong>", f"<strong>{section}</strong><br>")
-        
-        return formatted_content
+        # No need to replace section headers; use AI output as-is
+        return content
     except Exception as e:
         print(f"Error analyzing image: {str(e)}")
         print(f"Error type: {type(e)}")

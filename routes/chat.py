@@ -18,9 +18,16 @@ def chat():
 @chat_bp.route('/chat-history')
 @login_required
 def get_chat_history():
-    chats = Chat.query.filter_by(user_id=current_user.id).order_by(Chat.updated_at.desc()).all()
+    page = request.args.get('page', 1, type=int)
+    per_page = 8
+    pagination = Chat.query.filter_by(user_id=current_user.id).order_by(Chat.updated_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    chats = pagination.items
     return jsonify({
-        'chats': [chat.to_dict() for chat in chats]
+        'chats': [chat.to_dict() for chat in chats],
+        'page': pagination.page,
+        'pages': pagination.pages,
+        'has_next': pagination.has_next,
+        'has_prev': pagination.has_prev
     })
 
 @chat_bp.route('/chat/<int:chat_id>')
@@ -162,4 +169,18 @@ def chat_message():
         print(f"Error in chat_message: {str(e)}")
         print(f"Error type: {type(e)}")
         print(f"Error details: {e.__dict__ if hasattr(e, '__dict__') else 'No details available'}")
-        return jsonify({'error': str(e)}), 500 
+        return jsonify({'error': str(e)}), 500
+
+@chat_bp.route('/chat-feedback')
+@login_required
+def get_chat_feedback():
+    feedback_entries = RecommendationFeedback.query.filter_by(user_id=current_user.id).all()
+    feedback_list = [
+        {
+            'recommendation': entry.recommendation,
+            'question': entry.question,
+            'feedback': entry.feedback
+        }
+        for entry in feedback_entries
+    ]
+    return jsonify({'feedback': feedback_list}) 

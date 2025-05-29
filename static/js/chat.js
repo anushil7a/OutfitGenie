@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const recommendationMode = document.getElementById('recommendation-mode');
     const modeLabel = document.getElementById('mode-label');
     let currentChatId = null;
+    let feedbackMap = {};
 
     // Update mode label based on toggle state
     function updateModeLabel() {
@@ -23,12 +24,35 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add toggle switch event listener
     recommendationMode.addEventListener('change', updateModeLabel);
 
-    // Add welcome message
-    addMessage('AI', 'Hi! I\'m your AI Fashion Assistant. I can help you create perfect outfits using your uploaded clothes. You can ask me things like:', true);
-    addMessage('AI', '• "What should I wear for a casual dinner?"\n• "Can you suggest an outfit for a job interview?"\n• "What goes well with my blue shirt?"\n• "Help me create a summer outfit"', true);
+    // Function to show welcome messages
+    function showWelcomeMessages() {
+        addMessage('AI', 'Hi! I\'m your AI Fashion Assistant. I can help you create perfect outfits using your uploaded clothes. You can ask me things like:', true);
+        addMessage('AI', '• "What should I wear for a casual dinner?" • "Can you suggest an outfit for a job interview?" • "What goes well with my blue shirt?" • "Help me create a summer outfit"', true);
+    }
+
+    // Show welcome messages on initial load
+    showWelcomeMessages();
 
     // Load chat history
-    loadChatHistory();
+    loadChatHistory(1);
+
+    // Fetch all feedback for the user
+    async function fetchFeedback() {
+        try {
+            const response = await fetch('/chat-feedback');
+            const data = await response.json();
+            feedbackMap = {};
+            data.feedback.forEach(entry => {
+                // Key by recommendation + question
+                feedbackMap[entry.recommendation + '||' + entry.question] = entry.feedback;
+            });
+        } catch (error) {
+            console.error('Error fetching feedback:', error);
+        }
+    }
+
+    // On page load, fetch feedback
+    fetchFeedback();
 
     // Handle form submission
     chatForm.addEventListener('submit', async (e) => {
@@ -75,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Function to add a message to the chat
-    function addMessage(sender, text, imageUrls = [], isRecommendation = false) {
+    function addMessage(sender, text, imageUrls = [], isRecommendation = false, question = null) {
         const messagesDiv = document.getElementById('chat-messages');
         const messageDiv = document.createElement('div');
         messageDiv.className = `flex ${sender === 'You' ? 'justify-end' : 'justify-start'}`;
@@ -98,18 +122,22 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Add feedback buttons for AI recommendations
         if (isRecommendation && sender === 'AI') {
-            // Get the user's question from the previous message
-            const messages = chatMessages.querySelectorAll('.flex');
-            const lastUserMessage = Array.from(messages)
-                .reverse()
-                .find(msg => msg.querySelector('.bg-indigo-600'))?.querySelector('.text-sm')?.textContent || '';
-            
+            // Get the user's question from the previous message if not provided
+            let msgQuestion = question;
+            if (!msgQuestion) {
+                const messages = chatMessages.querySelectorAll('.flex');
+                msgQuestion = Array.from(messages)
+                    .reverse()
+                    .find(msg => msg.querySelector('.bg-indigo-600'))?.querySelector('.text-sm')?.textContent || '';
+            }
+            // Track feedback state
+            let currentFeedback = feedbackMap[text + '||' + msgQuestion] || null;
             messageContent += `
                 <div class="mt-2 flex justify-end space-x-2">
-                    <button class="feedback-btn px-2 py-1 text-xs rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300" data-feedback="like" data-recommendation="${text}" data-question="${lastUserMessage}">
+                    <button class="feedback-btn px-2 py-1 text-xs rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300" data-feedback="like" data-recommendation="${text}" data-question="${msgQuestion}">
                         👍 Like
                     </button>
-                    <button class="feedback-btn px-2 py-1 text-xs rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300" data-feedback="dislike" data-recommendation="${text}" data-question="${lastUserMessage}">
+                    <button class="feedback-btn px-2 py-1 text-xs rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300" data-feedback="dislike" data-recommendation="${text}" data-question="${msgQuestion}">
                         👎 Dislike
                     </button>
                 </div>
@@ -123,12 +151,32 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Add event listeners to feedback buttons if they exist
         if (isRecommendation && sender === 'AI') {
-            messageDiv.querySelectorAll('.feedback-btn').forEach(button => {
+            let msgQuestion = question;
+            if (!msgQuestion) {
+                const messages = chatMessages.querySelectorAll('.flex');
+                msgQuestion = Array.from(messages)
+                    .reverse()
+                    .find(msg => msg.querySelector('.bg-indigo-600'))?.querySelector('.text-sm')?.textContent || '';
+            }
+            let selectedFeedback = feedbackMap[text + '||' + msgQuestion] || null;
+            const likeBtn = messageDiv.querySelector('button[data-feedback="like"]');
+            const dislikeBtn = messageDiv.querySelector('button[data-feedback="dislike"]');
+            const feedbackBtns = [likeBtn, dislikeBtn];
+            // Set initial button state
+            if (selectedFeedback === 'like') likeBtn.classList.add('bg-green-200');
+            if (selectedFeedback === 'dislike') dislikeBtn.classList.add('bg-red-200');
+            feedbackBtns.forEach(button => {
                 button.addEventListener('click', async () => {
                     const feedback = button.dataset.feedback;
                     const recommendation = button.dataset.recommendation;
                     const question = button.dataset.question;
-                    
+                    // Toggle logic
+                    let newFeedback;
+                    if (selectedFeedback === feedback) {
+                        newFeedback = 'remove';
+                    } else {
+                        newFeedback = feedback;
+                    }
                     try {
                         const response = await fetch('/recommendation-feedback', {
                             method: 'POST',
@@ -138,24 +186,30 @@ document.addEventListener('DOMContentLoaded', () => {
                             },
                             body: JSON.stringify({
                                 recommendation: recommendation,
-                                feedback: feedback,
+                                feedback: newFeedback,
                                 question: question,
                                 context: {
                                     timestamp: new Date().toISOString()
                                 }
                             })
                         });
-                        
                         if (response.ok) {
-                            // Disable both buttons
-                            messageDiv.querySelectorAll('.feedback-btn').forEach(btn => {
-                                btn.disabled = true;
-                                btn.classList.add('opacity-50');
-                            });
-                            
-                            // Highlight the selected button
-                            button.classList.remove('bg-gray-200');
-                            button.classList.add(feedback === 'like' ? 'bg-green-200' : 'bg-red-200');
+                            if (newFeedback === 'remove') {
+                                selectedFeedback = null;
+                                feedbackMap[recommendation + '||' + question] = null;
+                                feedbackBtns.forEach(btn => {
+                                    btn.classList.remove('bg-green-200', 'bg-red-200', 'opacity-50');
+                                    btn.disabled = false;
+                                });
+                            } else {
+                                selectedFeedback = feedback;
+                                feedbackMap[recommendation + '||' + question] = feedback;
+                                feedbackBtns.forEach(btn => {
+                                    btn.classList.remove('bg-green-200', 'bg-red-200', 'opacity-50');
+                                    btn.disabled = false;
+                                });
+                                button.classList.add(feedback === 'like' ? 'bg-green-200' : 'bg-red-200');
+                            }
                         } else {
                             const errorData = await response.json();
                             console.error('Error response:', errorData);
@@ -171,9 +225,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Function to load chat history
-    async function loadChatHistory() {
+    async function loadChatHistory(page = 1) {
         try {
-            const response = await fetch('/chat-history');
+            const response = await fetch(`/chat-history?page=${page}`);
             const data = await response.json();
             
             chatHistory.innerHTML = '';
@@ -193,13 +247,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         </button>
                     </div>
                 `;
-                
                 // Add click handler for the chat item
                 chatItem.querySelector('.flex-1').addEventListener('click', () => loadChat(chat.id));
-                
                 // Add click handler for the delete button
                 chatItem.querySelector('.delete-chat').addEventListener('click', async (e) => {
-                    e.stopPropagation(); // Prevent chat loading when clicking delete
+                    e.stopPropagation();
                     if (confirm('Are you sure you want to delete this chat?')) {
                         try {
                             const response = await fetch(`/chat/${chat.id}`, {
@@ -208,15 +260,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                     'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
                                 }
                             });
-                            
                             if (response.ok) {
-                                // If the deleted chat was the current one, clear the chat
                                 if (chat.id === currentChatId) {
                                     chatMessages.innerHTML = '';
                                     currentChatId = null;
                                 }
-                                // Reload chat history
-                                loadChatHistory();
+                                loadChatHistory(page);
                             } else {
                                 alert('Failed to delete chat. Please try again.');
                             }
@@ -226,9 +275,36 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }
                 });
-                
                 chatHistory.appendChild(chatItem);
             });
+            // Pagination controls
+            const paginationDiv = document.createElement('div');
+            paginationDiv.className = 'flex justify-between mt-4';
+            if (data.has_prev) {
+                const prevBtn = document.createElement('button');
+                prevBtn.textContent = 'Previous';
+                prevBtn.className = 'px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300';
+                prevBtn.addEventListener('click', () => loadChatHistory(data.page - 1));
+                paginationDiv.appendChild(prevBtn);
+            } else {
+                const spacer = document.createElement('div');
+                paginationDiv.appendChild(spacer);
+            }
+            const pageInfo = document.createElement('span');
+            pageInfo.textContent = `Page ${data.page} of ${data.pages}`;
+            pageInfo.className = 'text-xs text-gray-500 self-center';
+            paginationDiv.appendChild(pageInfo);
+            if (data.has_next) {
+                const nextBtn = document.createElement('button');
+                nextBtn.textContent = 'Next';
+                nextBtn.className = 'px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300';
+                nextBtn.addEventListener('click', () => loadChatHistory(data.page + 1));
+                paginationDiv.appendChild(nextBtn);
+            } else {
+                const spacer = document.createElement('div');
+                paginationDiv.appendChild(spacer);
+            }
+            chatHistory.appendChild(paginationDiv);
         } catch (error) {
             console.error('Error loading chat history:', error);
         }
@@ -237,6 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Function to load a specific chat
     async function loadChat(chatId) {
         try {
+            await fetchFeedback();
             const response = await fetch(`/chat/${chatId}`);
             const data = await response.json();
             
@@ -245,7 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Add messages from the loaded chat
             data.messages.forEach(message => {
-                addMessage(message.sender, message.text, message.image_urls, message.sender === 'AI');
+                addMessage(message.sender, message.text, message.image_urls, message.sender === 'AI', message.sender === 'AI' ? message.question : null);
             });
             
             currentChatId = chatId;
@@ -290,5 +367,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.target.style.visibility = 'visible';
             });
         }
+    });
+
+    // Add event listener for New Chat button
+    document.getElementById('new-chat-btn').addEventListener('click', () => {
+        chatMessages.innerHTML = '';
+        currentChatId = null;
+        loadChatHistory();
+        showWelcomeMessages();
     });
 }); 

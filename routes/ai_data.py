@@ -62,7 +62,7 @@ def save_recommendation_feedback():
         
         recommendation = data.get('recommendation')
         question = data.get('question')
-        feedback = data.get('feedback')  # 'like' or 'dislike'
+        feedback = data.get('feedback')  # 'like', 'dislike', or 'remove'
         context = data.get('context', {})  # Optional context data
         
         if not recommendation:
@@ -73,6 +73,21 @@ def save_recommendation_feedback():
             logger.error("No question provided")
             return jsonify({'error': 'No question provided'}), 400
             
+        if feedback == 'remove':
+            # Remove feedback entry if it exists
+            existing_feedback = RecommendationFeedback.query.filter_by(
+                user_id=current_user.id,
+                recommendation=recommendation,
+                question=question
+            ).first()
+            if existing_feedback:
+                db.session.delete(existing_feedback)
+                db.session.commit()
+                logger.info(f"Deleted feedback for user {current_user.id}")
+                return jsonify({'message': 'Feedback removed successfully'})
+            else:
+                return jsonify({'error': 'Feedback not found'}), 404
+        
         if not feedback or feedback not in ['like', 'dislike']:
             logger.error(f"Invalid feedback value: {feedback}")
             return jsonify({'error': 'Invalid feedback value'}), 400

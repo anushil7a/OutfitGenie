@@ -97,18 +97,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Single-card actions
 window.toggleFavorite = async (id) => {
+    const btn = document.querySelector(`[data-outfit-id="${id}"] .favorite-btn`);
+    const isFavorited = btn?.classList.contains('bg-yellow-400');
     const res = await fetch('/feedback', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content },
-        body: JSON.stringify({ outfit_id: id, rating: 1 })
+        body: JSON.stringify({ outfit_id: id, rating: isFavorited ? 0 : 1 })
     });
     if (!res.ok) return alert('Failed to update favorite');
-    const btn = document.querySelector(`[data-outfit-id="${id}"] .favorite-btn`);
-    btn?.classList.toggle('bg-yellow-400');
-    btn?.classList.toggle('text-yellow-600');
-    btn?.classList.toggle('bg-white');
-    btn?.classList.toggle('text-gray-600');
+    if (btn) {
+        btn.classList.toggle('bg-yellow-400', !isFavorited);
+        btn.classList.toggle('text-yellow-600', !isFavorited);
+        btn.classList.toggle('bg-white', isFavorited);
+        btn.classList.toggle('text-gray-600', isFavorited);
+    }
 };
 
 window.deleteOutfit = async (id, confirmDialog = true) => {

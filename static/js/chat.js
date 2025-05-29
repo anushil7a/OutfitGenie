@@ -8,6 +8,40 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentChatId = null;
     let feedbackMap = {};
 
+    // Example questions pool
+    const exampleQuestions = [
+        "What should I wear for a casual dinner?",
+        "Can you suggest an outfit for a job interview?",
+        "What goes well with my blue shirt?",
+        "Help me create a summer outfit",
+        "What should I wear to a wedding?",
+        "How can I style my black jeans?",
+        "What outfit is good for a rainy day?",
+        "Suggest something for a first date",
+        "What can I wear to look taller?",
+        "How do I dress for a business meeting?",
+        "What goes well with white sneakers?",
+        "Can you help me pick an outfit for a party?",
+        "What should I wear for a winter walk?",
+        "How do I style a denim jacket?",
+        "What is a good outfit for brunch?",
+        "How can I layer clothes for fall?",
+        "What should I wear to a concert?",
+        "Suggest a comfy travel outfit",
+        "What can I wear for a beach day?",
+        "How do I dress for a hot summer day?",
+        "What should I wear for a workout?",
+        "How do I style a floral dress?",
+        "What goes well with a red skirt?",
+        "What should I wear for a family gathering?",
+        "How do I dress up casual clothes?",
+        "What is a good outfit for hiking?",
+        "How do I style boots in spring?",
+        "What should I wear for a movie night?",
+        "How do I make my outfit look more formal?",
+        "What can I wear for a cozy night in?"
+    ];
+
     // Update mode label based on toggle state
     function updateModeLabel() {
         if (recommendationMode.checked) {
@@ -27,7 +61,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Function to show welcome messages
     function showWelcomeMessages() {
         addMessage('AI', 'Hi! I\'m your AI Fashion Assistant. I can help you create perfect outfits using your uploaded clothes. You can ask me things like:', true);
-        addMessage('AI', '• "What should I wear for a casual dinner?" • "Can you suggest an outfit for a job interview?" • "What goes well with my blue shirt?" • "Help me create a summer outfit"', true);
+        // Pick 4 random questions
+        const shuffled = exampleQuestions.sort(() => 0.5 - Math.random());
+        const selected = shuffled.slice(0, 4);
+        const listHtml = '<ul class="list-disc pl-6 space-y-1">' + selected.map(q => `<li>${q}</li>`).join('') + '</ul>';
+        addMessage('AI', listHtml, [], false);
     }
 
     // Show welcome messages on initial load

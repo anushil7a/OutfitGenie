@@ -26,11 +26,15 @@ def analyze_clothing_image(image_data):
                             "type": "text",
                             "text": '''Analyze all clothing items and accessories in the image and provide a natural, flowing description in the following format:
 
-For each clothing item that is visible in the image, describe it in a natural paragraph that includes:
+For each clothing item that is visible in the image, describe short descriptive bullet points that includes:
 - Type and style (e.g., "loose-fitting crewneck t-shirt", "straight-fit cargo pants")
-- Color and material (1/2 words)
-- Key features and design elements
-- overall vibe (1/2 words)
+- Color and material (e.g., "blue", "white", "cotton", "polyester", etc.)
+- Key features and design elements (e.g., "striped", "logo", "ripped knees", words on the shirt, etc.)
+- overall vibe (e.g., "casual", "sporty", "business casual", "formal", etc.)
+- brand or what its related to (if you see Barcelona logo, it's related to Barcelona, if you see Nike logo, it's related to Nike, etc.) (if visible, else null)
+- if its a pair of shoes, describe the type of shoes (e.g., "sneakers", "boots", "sandals", "flip flops", etc.) 
+- Do the same for accessories and clothes that are visible in the image.
+- Other imporantant information that you think is relevant to the item.
 
 Format your response EXACTLY like this example (including the line breaks), but ONLY include sections that are visible in the image:
 
@@ -38,9 +42,12 @@ Format your response EXACTLY like this example (including the line breaks), but 
 <strong>[Short Title (3-4 words)]:</strong> [Description]<br>
 <strong>[Short Title (3-4 words)]:</strong> [Description]
 
-Where the short title is a concise, descriptive name for the item (e.g., 'Yellow and black Jersey', 'Wireless earbuds', 'Blue jeans').
+Where the short title is a concise, descriptive name for the item (e.g., 'Barcelona Jersey', 'Wireless earbuds', 'Blue jeans', 'Nike Air Max', etc.).
 
-Keep descriptions concise but detailed enough for AI outfit matching. Focus on the overall look and feel while including specific details about style, fit, and features. ONLY describe items that are clearly visible in the image.
+Keep descriptions concise but detailed enough for AI outfit matching. 
+Focus on the overall look and feel while including specific details about style, fit, and features. 
+ONLY describe items that are clearly visible in the image.
+I want you to describe the items in a way that is easy to understand and use for AI outfit matching and recommendations (bullet points are fine).
 
 ---
 
@@ -83,8 +90,15 @@ Return the natural language description first, then the JSON array as shown abov
         # Get the response content
         content = response.choices[0].message.content.strip()
         
+        # Format analysis_text for better readability
+        def format_analysis(text):
+            import re
+            # Replace '- Header:' with '<strong>• Header:</strong>'
+            return re.sub(r'- ([^:]+:)', r'<strong>• \1</strong>', text)
+        analysis_text = format_analysis(content)
+        
         # No need to replace section headers; use AI output as-is
-        return content
+        return analysis_text
     except Exception as e:
         print(f"Error analyzing image: {str(e)}")
         print(f"Error type: {type(e)}")

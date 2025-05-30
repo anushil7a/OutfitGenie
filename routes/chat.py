@@ -69,6 +69,7 @@ def chat_message():
     try:
         # Get user's uploaded outfits
         user_outfits = Outfit.query.filter_by(user_id=current_user.id).all()
+        print(f"user_outfits: {user_outfits}")
         outfits_info = []
         for outfit in user_outfits:
             outfits_info.append({

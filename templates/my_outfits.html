@@ -76,6 +76,23 @@
                             {% if outfit.analysis %}
                                 <p class="mt-2 text-sm text-gray-600 whitespace-pre-line">{{ outfit.analysis | safe }}</p>
                             {% endif %}
+                            {% if outfit.items %}
+                                <div class="mt-2 text-xs text-gray-700 bg-gray-50 rounded p-2">
+                                    <strong>Detected Items:</strong>
+                                    <ul class="list-disc pl-5">
+                                        {% for item in outfit.items %}
+                                        <li>
+                                            <span><strong>Type:</strong> {{ item.type or 'Unknown' }}</span>,
+                                            <span><strong>Color:</strong> {{ item.color or 'Unknown' }}</span>,
+                                            <span><strong>Brand:</strong> {{ item.brand or 'Unknown' }}</span>,
+                                            <span><strong>Material:</strong> {{ item.material or 'Unknown' }}</span>,
+                                            <span><strong>Features:</strong> {{ item.key_features or 'None' }}</span>,
+                                            <span><strong>Vibe:</strong> {{ item.overall_vibe or 'Unknown' }}</span>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            {% endif %}
                         </div>
                     {% endfor %}
                 </div>

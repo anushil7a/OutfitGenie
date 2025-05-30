@@ -244,4 +244,4 @@ if __name__ == '__main__':
         db.create_all()
         # Create uploads directory if it doesn't exist
         os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-    app.run(debug=True) 
+    app.run(debug=True, reloader_type='stat') 

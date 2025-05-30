@@ -24,7 +24,7 @@ def analyze_clothing_image(image_data):
                     "content": [
                         {
                             "type": "text",
-                            "text": '''Analyze this clothing item and provide a natural, flowing description in the following format:
+                            "text": '''Analyze all clothing items and accessories in the image and provide a natural, flowing description in the following format:
 
 For each clothing item that is visible in the image, describe it in a natural paragraph that includes:
 - Type and style (e.g., "loose-fitting crewneck t-shirt", "straight-fit cargo pants")
@@ -40,7 +40,33 @@ Format your response EXACTLY like this example (including the line breaks), but 
 
 Where the short title is a concise, descriptive name for the item (e.g., 'Yellow and black Jersey', 'Wireless earbuds', 'Blue jeans').
 
-Keep descriptions concise but detailed enough for AI outfit matching. Focus on the overall look and feel while including specific details about style, fit, and features. ONLY describe items that are clearly visible in the image.'''
+Keep descriptions concise but detailed enough for AI outfit matching. Focus on the overall look and feel while including specific details about style, fit, and features. ONLY describe items that are clearly visible in the image.
+
+---
+
+After the natural language description, ALSO return a JSON array called items_json. For each visible clothing and accessory item, include:
+- type (e.g., "t-shirt", "jeans", "hat", "shoes", "accessory", "earbuds", etc.)
+- color (e.g., "blue", "white", etc.)
+- brand or what its related to (if you see Barcelona logo, it's related to Barcelona, if you see Nike logo, it's related to Nike, etc.) (if visible, else null)
+- material (if visible, else null)
+- key_features (e.g., "striped", "logo", "ripped knees", words on the shirt, etc.)
+- overall_vibe (e.g., "casual", "sporty", "business casual", "formal", etc.)
+
+Format:
+items_json = [
+  {
+    "type": "...",
+    "color": "...",
+    "brand": "...",
+    "material": "...",
+    "key_features": "...",
+    "overall_vibe": "..."
+  },
+  ...
+]
+
+If a field is not visible, set it to null.
+Return the natural language description first, then the JSON array as shown above.'''
                         },
                         {
                             "type": "image_url",
@@ -51,7 +77,7 @@ Keep descriptions concise but detailed enough for AI outfit matching. Focus on t
                     ]
                 }
             ],
-            max_tokens=300
+            max_tokens=600
         )
         
         # Get the response content
@@ -92,18 +118,33 @@ def upload_clothing():
                 try:
                     with open(filepath, 'rb') as img_file:
                         analysis = analyze_clothing_image(img_file.read())
-                        
-                        # Create new outfit record
+                        # Split the response into natural language and items_json
+                        items = None
+                        analysis_text = analysis
+                        if 'items_json =' in analysis:
+                            parts = analysis.split('items_json =', 1)
+                            analysis_text = parts[0].strip()
+                            import re
+                            match = re.search(r'items_json\s*=\s*(\[.*\])', analysis, re.DOTALL)
+                            if match:
+                                items_str = match.group(1)
+                                try:
+                                    items = json.loads(items_str)
+                                except Exception as e:
+                                    print(f"Error parsing items_json: {str(e)}")
+                                    items = None
                         outfit = Outfit(
                             user_id=current_user.id,
                             image_url=url_for('static', filename=f'uploads/{current_user.id}/{filename}'),
-                            analysis=analysis,
+                            analysis=analysis_text,
+                            items=items,
                             created_at=datetime.utcnow()
                         )
                         db.session.add(outfit)
                         uploaded_files.append({
                             'message': 'Image uploaded successfully',
-                            'analysis': analysis,
+                            'analysis': analysis_text,
+                            'items': items,
                             'image_url': outfit.image_url
                         })
                 except Exception as e:

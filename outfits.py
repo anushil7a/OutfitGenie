@@ -90,8 +90,15 @@ Return the natural language description first, then the JSON array as shown abov
         # Get the response content
         content = response.choices[0].message.content.strip()
         
+        # Format analysis_text for better readability
+        def format_analysis(text):
+            import re
+            # Replace '- Header:' with '<strong>• Header:</strong>'
+            return re.sub(r'- ([^:]+:)', r'<strong>• \1</strong>', text)
+        analysis_text = format_analysis(content)
+        
         # No need to replace section headers; use AI output as-is
-        return content
+        return analysis_text
     except Exception as e:
         print(f"Error analyzing image: {str(e)}")
         print(f"Error type: {type(e)}")

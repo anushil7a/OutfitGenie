@@ -93,6 +93,39 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     });
+
+    // Toggle Detected Items visibility (button switch)
+    const toggleDetectedItemsBtn = document.getElementById('toggle-detected-items');
+    if (toggleDetectedItemsBtn) {
+        function setSwitchState(isOn) {
+            toggleDetectedItemsBtn.setAttribute('aria-checked', isOn ? 'true' : 'false');
+            toggleDetectedItemsBtn.classList.toggle('bg-indigo-600', isOn);
+            toggleDetectedItemsBtn.classList.toggle('bg-gray-300', !isOn);
+            const thumb = toggleDetectedItemsBtn.querySelector('span:not(.sr-only)');
+            if (thumb) {
+                thumb.classList.toggle('translate-x-5', isOn);
+                thumb.classList.toggle('translate-x-0', !isOn);
+            }
+            // Show/hide detected items
+            const detectedSections = document.querySelectorAll('.detected-items-section');
+            detectedSections.forEach(section => {
+                section.style.display = isOn ? '' : 'none';
+            });
+        }
+        // Initial state: ON
+        setSwitchState(true);
+        toggleDetectedItemsBtn.addEventListener('click', function() {
+            const isOn = toggleDetectedItemsBtn.getAttribute('aria-checked') === 'true';
+            setSwitchState(!isOn);
+        });
+        // Keyboard accessibility
+        toggleDetectedItemsBtn.addEventListener('keydown', function(e) {
+            if (e.key === ' ' || e.key === 'Enter') {
+                e.preventDefault();
+                toggleDetectedItemsBtn.click();
+            }
+        });
+    }
 });
 
 // Single-card actions

@@ -121,6 +121,8 @@ Return the natural language description first, then the JSON array as shown abov
                     print(f"Error parsing items_json: {str(e)}")
                     items = None
         
+        print(f"Bullet points: {bullet_points}")
+        print(f"Items: {items}")
         return bullet_points, items
     except Exception as e:
         print(f"Error analyzing image: {str(e)}")
@@ -128,7 +130,29 @@ Return the natural language description first, then the JSON array as shown abov
         print(f"Error details: {e.__dict__ if hasattr(e, '__dict__') else 'No details available'}")
         return "Error analyzing image. Please try again.", None
 
-def generate_short_description(item):
+def get_item_bullet_points(bullet_points, item_type):
+    """Extract bullet points for a specific item type from the full bullet points text."""
+    try:
+        # Split the bullet points into sections
+        sections = bullet_points.split('<br><br>')
+        
+        # Find the section that matches the item type
+        for section in sections:
+            if section.strip():
+                # Get the title (first line) of the section
+                lines = section.split('<br>')
+                if lines and '<strong>' in lines[0]:
+                    title = lines[0].replace('<strong>', '').replace('</strong>', '').strip(':')
+                    # If the title contains the item type, return this section
+                    if item_type.lower() in title.lower():
+                        return section
+        
+        return None
+    except Exception as e:
+        print(f"Error extracting bullet points: {str(e)}")
+        return None
+
+def generate_short_description(item, bullet_points):
     try:
         client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
         prompt = f"""Given these details about a clothing item:
@@ -138,13 +162,25 @@ def generate_short_description(item):
         Material: {item['material']}
         Key Features: {item['key_features']}
         Overall Vibe: {item['overall_vibe']}
+
+        And the detailed bullet points:
+        {bullet_points}
+
+        Write a concise, factual description (5/7 words max) that:
+        1. Focuses on important details not already covered in the items dictionary
+        2. Includes any specific identifications (e.g., if it looks like an Argentina jersey or something you recognize based on the bullet points, mention that, you can also assume based on information you are given)
+        3. Avoids filler words and unnecessary adjectives
+        4. Highlights unique or distinctive features
+        5. Maintains a professional, factual tone
+        Use this as example: Has red and white stripes, and a graphic of a hornet and the word 'Hornets' in bold red letters.
+        Another example: Might be Argentina jersey b/c of colors.
         
-        Write a short, natural 1-2 sentence description that captures the essence of this item."""
+        """
         
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are a fashion expert who writes concise, engaging descriptions of clothing items."},
+                {"role": "system", "content": "You are a precise fashion expert who writes factual, concise descriptions focusing on unique and important details."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=100
@@ -197,8 +233,11 @@ def upload_clothing():
                         # Create clothing items
                         if items:
                             for item in items:
-                                # Generate short description
-                                short_description = generate_short_description(item)
+                                # Get bullet points specific to this item
+                                item_bullet_points = get_item_bullet_points(bullet_points, item.get('type', ''))
+                                # Generate short description using only this item's bullet points
+                                short_description = generate_short_description(item, item_bullet_points)
+                                print(f"Short description: {short_description}")
                                 
                                 clothing_item = ClothingItem(
                                     user_id=current_user.id,

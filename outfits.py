@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, url_for, current_app
+from flask import Blueprint, render_template, request, jsonify, url_for, current_app, flash, redirect
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 import os
@@ -222,16 +222,10 @@ def upload_clothing():
                         })
                 except Exception as e:
                     print(f"Error processing image: {str(e)}")
-                    # If there's an error processing the image, still save the file
-                    outfit = Outfit(
-                        user_id=current_user.id,
-                        image_url=url_for('static', filename=f'uploads/{current_user.id}/{filename}'),
-                        created_at=datetime.utcnow()
-                    )
-                    db.session.add(outfit)
+                    # If there's an error processing the image, still save the file, but do NOT add another Outfit
                     uploaded_files.append({
                         'message': 'Image uploaded successfully (processing failed)',
-                        'image_url': outfit.image_url
+                        'image_url': url_for('static', filename=f'uploads/{current_user.id}/{filename}')
                     })
             except Exception as e:
                 print(f"Error saving file: {str(e)}")
@@ -254,6 +248,7 @@ def upload_clothing():
 @login_required
 def my_outfits():
     try:
+        print("Accessing /my-outfits route")  # Debug print
         # Get page number from query parameters, default to 1
         page = request.args.get('page', 1, type=int)
         per_page = 6  # Number of items per page
@@ -266,6 +261,7 @@ def my_outfits():
         # Get clothing items for each outfit
         for outfit in outfits_pagination.items:
             clothing_items = ClothingItem.query.filter_by(outfit_id=outfit.id).all()
+            print(f"Clothing items for outfit {outfit.id}: {clothing_items}")
             if clothing_items:
                 outfit.items = [item.to_dict() for item in clothing_items]
         
@@ -277,7 +273,9 @@ def my_outfits():
         
         return render_template('my_outfits.html', outfits=outfits_pagination.items, pagination=outfits_pagination)
     except Exception as e:
-        print(f"Error in my_outfits route: {str(e)}")  # Debug print
+        import traceback
+        print("Error in my_outfits route:", str(e))
+        traceback.print_exc()
         flash('Error loading outfits. Please try again.')
         return redirect(url_for('index'))
 

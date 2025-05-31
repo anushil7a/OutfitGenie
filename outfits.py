@@ -210,6 +210,7 @@ def upload_clothing():
                                     key_features=item.get('key_features'),
                                     overall_vibe=item.get('overall_vibe'),
                                     short_description=short_description,
+                                    image_url=outfit.image_url,  # Store the image link directly in the clothing_item table
                                     created_at=datetime.utcnow()
                                 )
                                 db.session.add(clothing_item)

@@ -67,4 +67,29 @@ class RecommendationFeedback(db.Model):
             'feedback': self.feedback,
             'created_at': self.created_at.isoformat(),
             'context': self.context
+        }
+
+class ClothingItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    outfit_id = db.Column(db.Integer, db.ForeignKey('outfit.id'), nullable=False)
+    type = db.Column(db.String(50))
+    color = db.Column(db.String(50))
+    brand = db.Column(db.String(100))
+    material = db.Column(db.String(100))
+    key_features = db.Column(db.Text)
+    overall_vibe = db.Column(db.String(50))
+    short_description = db.Column(db.Text)  # For the paragraph format
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'type': self.type,
+            'color': self.color,
+            'brand': self.brand,
+            'material': self.material,
+            'key_features': self.key_features,
+            'overall_vibe': self.overall_vibe,
+            'short_description': self.short_description
         } 

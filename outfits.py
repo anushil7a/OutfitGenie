@@ -1,9 +1,9 @@
-from flask import Blueprint, render_template, request, jsonify, url_for, current_app
+from flask import Blueprint, render_template, request, jsonify, url_for, current_app, flash, redirect
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 import os
 from datetime import datetime
-from models import db, Outfit
+from models import db, Outfit, ClothingItem
 import base64
 from openai import OpenAI
 import json
@@ -38,11 +38,26 @@ For each clothing item that is visible in the image, describe short descriptive 
 
 Format your response EXACTLY like this example (including the line breaks), but ONLY include sections that are visible in the image:
 
-<strong>[Short Title (3-4 words)]:</strong> [Description]<br>
-<strong>[Short Title (3-4 words)]:</strong> [Description]<br>
-<strong>[Short Title (3-4 words)]:</strong> [Description]
-
-Where the short title is a concise, descriptive name for the item (e.g., 'Barcelona Jersey', 'Wireless earbuds', 'Blue jeans', 'Nike Air Max', etc.).
+<strong>Barcelona Jersey:</strong><br>
+- Type and style: Short-sleeved sports jersey<br>
+- Color and material: Blue with pink accents, polyester<br>
+- Key features and design elements: Features a Barcelona logo, colorful abstract patterns<br>
+- Overall vibe: Sporty<br>
+- Brand or what it's related to: FC Barcelona<br>
+<br>
+<strong>Black Backpack:</strong><br>
+- Type and style: Casual backpack<br>
+- Color and material: Black, synthetic material<br>
+- Key features and design elements: Multiple compartments, adjustable straps<br>
+- Overall vibe: Casual and functional<br>
+- Brand or what it's related to: null<br>
+<br>
+<strong>Wireless Earbuds:</strong><br>
+- Type and style: In-ear wireless earbuds<br>
+- Color and material: White, plastic<br>
+- Key features and design elements: Compact design, noise isolation<br>
+- Overall vibe: Modern and practical<br>
+- Brand or what it's related to: null
 
 Keep descriptions concise but detailed enough for AI outfit matching. 
 Focus on the overall look and feel while including specific details about style, fit, and features. 
@@ -90,20 +105,55 @@ Return the natural language description first, then the JSON array as shown abov
         # Get the response content
         content = response.choices[0].message.content.strip()
         
-        # Format analysis_text for better readability
-        def format_analysis(text):
+        # Split the response into bullet points and items_json
+        bullet_points = content
+        items = None
+        if 'items_json =' in content:
+            parts = content.split('items_json =', 1)
+            bullet_points = parts[0].strip()
             import re
-            # Replace '- Header:' with '<strong>• Header:</strong>'
-            return re.sub(r'- ([^:]+:)', r'<strong>• \1</strong>', text)
-        analysis_text = format_analysis(content)
+            match = re.search(r'items_json\s*=\s*(\[.*\])', content, re.DOTALL)
+            if match:
+                items_str = match.group(1)
+                try:
+                    items = json.loads(items_str)
+                except Exception as e:
+                    print(f"Error parsing items_json: {str(e)}")
+                    items = None
         
-        # No need to replace section headers; use AI output as-is
-        return analysis_text
+        return bullet_points, items
     except Exception as e:
         print(f"Error analyzing image: {str(e)}")
         print(f"Error type: {type(e)}")
         print(f"Error details: {e.__dict__ if hasattr(e, '__dict__') else 'No details available'}")
-        return "Error analyzing image. Please try again."
+        return "Error analyzing image. Please try again.", None
+
+def generate_short_description(item):
+    try:
+        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        prompt = f"""Given these details about a clothing item:
+        Type: {item['type']}
+        Color: {item['color']}
+        Brand: {item['brand']}
+        Material: {item['material']}
+        Key Features: {item['key_features']}
+        Overall Vibe: {item['overall_vibe']}
+        
+        Write a short, natural 1-2 sentence description that captures the essence of this item."""
+        
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a fashion expert who writes concise, engaging descriptions of clothing items."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=100
+        )
+        
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        logger.error(f"Error generating description: {str(e)}")
+        return None
 
 @outfits.route('/upload', methods=['POST'])
 @login_required
@@ -131,48 +181,51 @@ def upload_clothing():
                 # Process image with OpenAI Vision API
                 try:
                     with open(filepath, 'rb') as img_file:
-                        analysis = analyze_clothing_image(img_file.read())
-                        # Split the response into natural language and items_json
-                        items = None
-                        analysis_text = analysis
-                        if 'items_json =' in analysis:
-                            parts = analysis.split('items_json =', 1)
-                            analysis_text = parts[0].strip()
-                            import re
-                            match = re.search(r'items_json\s*=\s*(\[.*\])', analysis, re.DOTALL)
-                            if match:
-                                items_str = match.group(1)
-                                try:
-                                    items = json.loads(items_str)
-                                except Exception as e:
-                                    print(f"Error parsing items_json: {str(e)}")
-                                    items = None
+                        bullet_points, items = analyze_clothing_image(img_file.read())
+                        
+                        # Create the outfit
                         outfit = Outfit(
                             user_id=current_user.id,
                             image_url=url_for('static', filename=f'uploads/{current_user.id}/{filename}'),
-                            analysis=analysis_text,
+                            analysis=bullet_points,
                             items=items,
                             created_at=datetime.utcnow()
                         )
                         db.session.add(outfit)
+                        db.session.flush()  # Get the outfit ID
+                        
+                        # Create clothing items
+                        if items:
+                            for item in items:
+                                # Generate short description
+                                short_description = generate_short_description(item)
+                                
+                                clothing_item = ClothingItem(
+                                    user_id=current_user.id,
+                                    outfit_id=outfit.id,
+                                    type=item.get('type'),
+                                    color=item.get('color'),
+                                    brand=item.get('brand'),
+                                    material=item.get('material'),
+                                    key_features=item.get('key_features'),
+                                    overall_vibe=item.get('overall_vibe'),
+                                    short_description=short_description,
+                                    created_at=datetime.utcnow()
+                                )
+                                db.session.add(clothing_item)
+                        
                         uploaded_files.append({
                             'message': 'Image uploaded successfully',
-                            'analysis': analysis_text,
+                            'analysis': bullet_points,
                             'items': items,
                             'image_url': outfit.image_url
                         })
                 except Exception as e:
                     print(f"Error processing image: {str(e)}")
-                    # If there's an error processing the image, still save the file
-                    outfit = Outfit(
-                        user_id=current_user.id,
-                        image_url=url_for('static', filename=f'uploads/{current_user.id}/{filename}'),
-                        created_at=datetime.utcnow()
-                    )
-                    db.session.add(outfit)
+                    # If there's an error processing the image, still save the file, but do NOT add another Outfit
                     uploaded_files.append({
                         'message': 'Image uploaded successfully (processing failed)',
-                        'image_url': outfit.image_url
+                        'image_url': url_for('static', filename=f'uploads/{current_user.id}/{filename}')
                     })
             except Exception as e:
                 print(f"Error saving file: {str(e)}")
@@ -195,6 +248,7 @@ def upload_clothing():
 @login_required
 def my_outfits():
     try:
+        print("Accessing /my-outfits route")  # Debug print
         # Get page number from query parameters, default to 1
         page = request.args.get('page', 1, type=int)
         per_page = 6  # Number of items per page
@@ -204,6 +258,13 @@ def my_outfits():
             .order_by(Outfit.created_at.desc())\
             .paginate(page=page, per_page=per_page, error_out=False)
         
+        # Get clothing items for each outfit
+        for outfit in outfits_pagination.items:
+            clothing_items = ClothingItem.query.filter_by(outfit_id=outfit.id).all()
+            print(f"Clothing items for outfit {outfit.id}: {clothing_items}")
+            if clothing_items:
+                outfit.items = [item.to_dict() for item in clothing_items]
+        
         # Check if the uploads directory exists
         uploads_dir = os.path.join(current_app.root_path, 'static', 'uploads', str(current_user.id))
         if not os.path.exists(uploads_dir):
@@ -212,7 +273,9 @@ def my_outfits():
         
         return render_template('my_outfits.html', outfits=outfits_pagination.items, pagination=outfits_pagination)
     except Exception as e:
-        print(f"Error in my_outfits route: {str(e)}")  # Debug print
+        import traceback
+        print("Error in my_outfits route:", str(e))
+        traceback.print_exc()
         flash('Error loading outfits. Please try again.')
         return redirect(url_for('index'))
 

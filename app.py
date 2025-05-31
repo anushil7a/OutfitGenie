@@ -19,6 +19,7 @@ from models import db, User, Outfit, Chat, RecommendationFeedback
 from routes.chat import chat_bp
 from routes.ai_data import ai_data_bp
 from utils.weather_utils import get_weather_data
+from weather_recommendations import weather_recommendations
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -52,6 +53,7 @@ app.register_blueprint(auth)
 app.register_blueprint(outfits)
 app.register_blueprint(chat_bp)
 app.register_blueprint(ai_data_bp)
+app.register_blueprint(weather_recommendations)
 
 # Configure OpenAI
 client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
@@ -91,7 +93,7 @@ def index():
         if location and (not weather_data or not weather_timestamp or 
            (datetime.utcnow() - datetime.fromisoformat(weather_timestamp)) > timedelta(minutes=30)):
             logger.info(f"[WEATHER CACHE MISS] Fetching new weather data for {location}")
-            weather_data = get_weather_data(location)
+            weather_data = get_weather_data(city=location)
             if weather_data:
                 session['weather_data'] = weather_data
                 session['weather_timestamp'] = datetime.utcnow().isoformat()
@@ -207,7 +209,7 @@ def update_location():
         logger.info(f"[UPDATE LOCATION] Fetching weather data for {location}")
         
         # Fetch weather data first
-        weather_data = get_weather_data(location)
+        weather_data = get_weather_data(city=location)
         if not weather_data:
             logger.error(f"[UPDATE LOCATION] Failed to get weather data for {location}")
             return jsonify({'error': 'Failed to get weather data for this location'}), 400

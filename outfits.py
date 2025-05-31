@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 import os
 from datetime import datetime
-from models import db, Outfit, ClothingItem
+from models import db, Outfit, ClothingItem, RecommendationFeedback, User
 import base64
 from openai import OpenAI
 import json

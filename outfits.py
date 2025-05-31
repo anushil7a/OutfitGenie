@@ -74,15 +74,15 @@ After the natural language description, ALSO return a JSON array called items_js
 - key_features (e.g., "striped", "logo", "ripped knees", words on the shirt, etc.)
 - overall_vibe (e.g., "casual", "sporty", "business casual", "formal", etc.)
 
-Format:
+Format Example:
 items_json = [
   {
-    "type": "...",
-    "color": "...",
-    "brand": "...",
-    "material": "...",
-    "key_features": "...",
-    "overall_vibe": "..."
+    "type": "Sleeveless sports t-shirt",
+    "color": "Gray and white",
+    "brand": "FC Barcelona",
+    "material": "Polyester",
+    "key_features": "Features word "HERNDON" in bold red letters, an illustration of a hornet, and the word "Hornets" beneath",
+    "overall_vibe": "Casual and sporty"
   },
   ...
 ]
@@ -99,7 +99,7 @@ Return the natural language description first, then the JSON array as shown abov
                     ]
                 }
             ],
-            max_tokens=600
+            max_tokens=1000
         )
         
         # Get the response content

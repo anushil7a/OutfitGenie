@@ -1,41 +1,41 @@
 // Delete outfit function - defined globally
-window.deleteOutfit = async (outfitId) => {
-    if (!confirm('Are you sure you want to delete this outfit? This action cannot be undone.')) {
-        return;
-    }
+// window.deleteOutfit = async (outfitId) => {
+//     if (!confirm('Are you sure you want to delete this outfit? This action cannot be undone.')) {
+//         return;
+//     }
 
-    try {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-        if (!csrfToken) {
-            throw new Error('CSRF token not found');
-        }
+//     try {
+//         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+//         if (!csrfToken) {
+//             throw new Error('CSRF token not found');
+//         }
 
-        const response = await fetch(`/delete-outfit/${outfitId}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            }
-        });
+//         const response = await fetch(`/delete-outfit/${outfitId}`, {
+//             method: 'POST',
+//             headers: {
+//                 'Content-Type': 'application/json',
+//                 'X-CSRFToken': csrfToken
+//             }
+//         });
 
-        if (response.ok) {
-            const outfitCard = document.querySelector(`[data-outfit-id="${outfitId}"]`);
-            if (outfitCard) {
-                outfitCard.remove();
-                // If no outfits left, reload the page
-                const remainingOutfits = document.querySelectorAll('[data-outfit-id]');
-                if (remainingOutfits.length === 0) {
-                    window.location.reload();
-                }
-            }
-        } else {
-            throw new Error('Failed to delete outfit');
-        }
-    } catch (error) {
-        console.error('Error deleting outfit:', error);
-        alert('Error deleting outfit. Please try again.');
-    }
-};
+//         if (response.ok) {
+//             const outfitCard = document.querySelector(`[data-outfit-id="${outfitId}"]`);
+//             if (outfitCard) {
+//                 outfitCard.remove();
+//                 // If no outfits left, reload the page
+//                 const remainingOutfits = document.querySelectorAll('[data-outfit-id]');
+//                 if (remainingOutfits.length === 0) {
+//                     window.location.reload();
+//                 }
+//             }
+//         } else {
+//             throw new Error('Failed to delete outfit');
+//         }
+//     } catch (error) {
+//         console.error('Error deleting outfit:', error);
+//         alert('Error deleting outfit. Please try again.');
+//     }
+// };
 
 document.addEventListener('DOMContentLoaded', () => {
     const clothingUpload = document.getElementById('clothing-upload');
@@ -637,19 +637,19 @@ window.toggleFavorite = async (id) => {
 };
 
 // confirmDialog = false → skip the prompt (used for bulk delete)
-window.deleteOutfit = async (id, confirmDialog = true) => {
-    if (confirmDialog && !confirm('Delete this outfit forever?')) return;
+// window.deleteOutfit = async (id, confirmDialog = true) => {
+//     if (confirmDialog && !confirm('Delete this outfit forever?')) return;
 
-    const res = await fetch(`/delete-outfit/${id}`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() }
-    });
-    if (!res.ok) return alert('Failed to delete outfit');
+//     const res = await fetch(`/delete-outfit/${id}`, {
+//         method: 'POST',
+//         credentials: 'include',
+//         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() }
+//     });
+//     if (!res.ok) return alert('Failed to delete outfit');
 
-    $(`[data-outfit-id="${id}"]`)?.remove();
-    if ($$('[data-outfit-id]').length === 0) location.reload();
-};
+//     $(`[data-outfit-id="${id}"]`)?.remove();
+//     if ($$('[data-outfit-id]').length === 0) location.reload();
+// };
 
 // ---------------------------------------------------------------------------
 // 2.  TOOLBAR BUTTONS  (select / deselect / favorite-selected / delete-selected)

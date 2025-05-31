@@ -81,6 +81,7 @@ class ClothingItem(db.Model):
     overall_vibe = db.Column(db.String(50))
     short_description = db.Column(db.Text)  # For the paragraph format
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    image_url = db.Column(db.String(255))  # Store the image link directly in the clothing_item table
 
     def to_dict(self):
         return {

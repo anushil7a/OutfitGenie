@@ -111,44 +111,9 @@ def index():
         logger.error(f"Error in index route: {str(e)}")
         return render_template('index.html', current_location=location)
 
-@app.route('/recommend', methods=['POST'])
-@login_required
-def get_recommendations():#isnt being usedd right now
-    data = request.json
-    occasion = data.get('occasion')
-    weather = data.get('weather')
-    
-    # Get weather data if not provided
-    if not weather:
-        weather = get_weather_data()
-    
-    # Generate outfit recommendations using OpenAI
-    recommendations = generate_outfit_recommendations(
-        occasion=occasion,
-        weather=weather,
-        user_preferences=current_user.preferences
-    )
-    
-    return jsonify(recommendations)
-
-@app.route('/feedback', methods=['POST'])
-@login_required
-def save_feedback(): #is it being used? no, not right now
-    data = request.json
-    outfit_id = data.get('outfit_id')
-    rating = data.get('rating')
-    
-    outfit = Outfit.query.get(outfit_id)
-    if outfit:
-        outfit.rating = rating
-        db.session.commit()
-        return jsonify({'message': 'Feedback saved successfully'})
-    
-    return jsonify({'error': 'Outfit not found'}), 404
-
 @app.route('/preferences', methods=['POST'])
 @login_required
-def save_preferences(): #is it being used? no, not right now
+def save_preferences(): 
     try:
         print("=== Preferences Save Request Start ===")
         data = request.json

@@ -374,3 +374,18 @@ def update_outfit_description(outfit_id):
     db.session.commit()
     
     return jsonify({'success': True}), 200 
+
+@outfits.route('/feedback', methods=['POST'])
+@login_required
+def save_feedback():
+    data = request.json
+    outfit_id = data.get('outfit_id')
+    rating = data.get('rating')
+    
+    outfit = Outfit.query.get(outfit_id)
+    if outfit:
+        outfit.rating = rating
+        db.session.commit()
+        return jsonify({'message': 'Feedback saved successfully'})
+    
+    return jsonify({'error': 'Outfit not found'}), 404 

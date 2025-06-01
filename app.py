@@ -85,9 +85,9 @@ def index():
         weather_data = session.get('weather_data')
         weather_timestamp = session.get('weather_timestamp')
         
-        logger.info(f"[DEBUG] Session data - Location: {location}")
-        logger.info(f"[DEBUG] Session data - Weather data: {weather_data}")
-        logger.info(f"[DEBUG] Session data - Weather timestamp: {weather_timestamp}")
+        #logger.info(f"[DEBUG] Session data - Location: {location}")
+        #logger.info(f"[DEBUG] Session data - Weather data: {weather_data}")
+        #logger.info(f"[DEBUG] Session data - Weather timestamp: {weather_timestamp}")
 
         # If we have a location but no weather data, or weather data is old, fetch new weather
         if location and (not weather_data or not weather_timestamp or 
@@ -102,7 +102,7 @@ def index():
         elif weather_data:
             logger.info(f"[WEATHER CACHE HIT] Using cached weather data: {weather_data}")
 
-        logger.info(f"[DEBUG] Final weather data being sent to template: {weather_data}")
+        #logger.info(f"[DEBUG] Final weather data being sent to template: {weather_data}")
         return render_template('index.html',
                              weather=weather_data,
                              recommendations=None,  # Set recommendations to None
@@ -197,16 +197,16 @@ def save_preferences(): #is it being used? no, not right now
 @app.route('/update-location', methods=['POST'])
 def update_location():
     try:
-        logger.info("[UPDATE LOCATION] Starting location update")
+        #logger.info("[UPDATE LOCATION] Starting location update")
         data = request.json
         location = data.get('location')
-        logger.info(f"[UPDATE LOCATION] Received location: {location}")
+        #logger.info(f"[UPDATE LOCATION] Received location: {location}")
         
         if not location:
-            logger.error("[UPDATE LOCATION] No location provided in request")
+            #logger.error("[UPDATE LOCATION] No location provided in request")
             return jsonify({'error': 'Location is required'}), 400
         
-        logger.info(f"[UPDATE LOCATION] Fetching weather data for {location}")
+        #logger.info(f"[UPDATE LOCATION] Fetching weather data for {location}")
         
         # Fetch weather data first
         weather_data = get_weather_data(city=location)
@@ -214,7 +214,7 @@ def update_location():
             logger.error(f"[UPDATE LOCATION] Failed to get weather data for {location}")
             return jsonify({'error': 'Failed to get weather data for this location'}), 400
             
-        logger.info(f"[UPDATE LOCATION] Successfully got weather data: {weather_data}")
+        #logger.info(f"[UPDATE LOCATION] Successfully got weather data: {weather_data}")
             
         # Update session data
         session['location'] = location
@@ -224,8 +224,8 @@ def update_location():
         # Force session to be saved
         session.modified = True
         
-        logger.info(f"[UPDATE LOCATION] Successfully updated session with location: {location}")
-        logger.info(f"[UPDATE LOCATION] Weather data cached: {weather_data}")
+        #logger.info(f"[UPDATE LOCATION] Successfully updated session with location: {location}")
+        #logger.info(f"[UPDATE LOCATION] Weather data cached: {weather_data}")
         
         return jsonify({
             'success': True, 

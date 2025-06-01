@@ -35,7 +35,7 @@ def get_weather_recommendations(user_id, weather_data):
             'user_preferences': user.preferences if user.preferences else {},
             'weather': weather_data
         }
-        print(f"Wardrobe data: {wardrobe_data.get('clothing_items')}")
+        #print(f"Wardrobe data: {wardrobe_data.get('clothing_items')}")
         
         # Call OpenAI API
         client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
@@ -73,18 +73,18 @@ def get_weather_recommendations(user_id, weather_data):
                     "content": prompt_content
                 }
             ],
-            max_tokens=1000
+            max_tokens=300
         )
         
         # Parse the response
         raw_content = response.choices[0].message.content.strip()
-        print("RAW OpenAI response:", raw_content)
+        #print("RAW OpenAI response:", raw_content)
         # Remove Markdown code block if present
         if raw_content.startswith("```"):
             raw_content = re.sub(r"^```[a-zA-Z]*\n?", "", raw_content)
             raw_content = re.sub(r"\n?```$", "", raw_content)
         recommendations = json.loads(raw_content)
-        print(f"Recommendations: {recommendations}")
+        #print(f"Recommendations: {recommendations}")
         return recommendations
         
     except Exception as e:

@@ -20,23 +20,23 @@ def get_weather_data(latitude=None, longitude=None, city=None):
         if latitude and longitude:
             params['lat'] = latitude
             params['lon'] = longitude
-            print(f"[DEBUG] Querying weather for lat/lon: {latitude}, {longitude}")
+            #print(f"[DEBUG] Querying weather for lat/lon: {latitude}, {longitude}")
         elif city:
             params['q'] = city
-            print(f"[DEBUG] Querying weather for city: {city}")
+            #print(f"[DEBUG] Querying weather for city: {city}")
         else:
             # Default to a major city if no location provided
             params['q'] = 'Dubai'
-            print("[DEBUG] Querying weather for default city: Dubai")
+            #print("[DEBUG] Querying weather for default city: Dubai")
 
-        print(f"[DEBUG] Weather API URL: {base_url}")
-        print(f"[DEBUG] Weather API params: {params}")
+        #print(f"[DEBUG] Weather API URL: {base_url}")
+        #print(f"[DEBUG] Weather API params: {params}")
 
         # Make API request
         response = requests.get(base_url, params=params)
         response.raise_for_status()
         data = response.json()
-        print(f"[DEBUG] Raw weather API response: {data}")
+        #print(f"[DEBUG] Raw weather API response: {data}")
 
         # Extract relevant weather information
         weather_data = {
@@ -48,7 +48,7 @@ def get_weather_data(latitude=None, longitude=None, city=None):
             'humidity': data['main']['humidity'],
             'wind_speed': round(data['wind']['speed']),  # Already in mph
         }
-        print(f"[DEBUG] Parsed weather data: {weather_data}")
+        #print(f"[DEBUG] Parsed weather data: {weather_data}")
 
         return weather_data
 

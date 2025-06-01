@@ -600,3 +600,61 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const id of ids) await window.deleteOutfit(id, /* confirmDialog */ false);
     });
 });
+
+// Weather Recommendations Persistence Logic
+function displayWeatherRecommendations(recommendations) {
+    const recommendationsDiv = document.getElementById('weather-recommendations');
+    if (!recommendationsDiv) return;
+    recommendationsDiv.innerHTML = '';
+    recommendations.forEach((outfit, index) => {
+        const outfitDiv = document.createElement('div');
+        outfitDiv.className = 'p-4 bg-gray-50 rounded-lg';
+        outfitDiv.innerHTML = `
+            <h3 class="font-semibold mb-2">Outfit ${index + 1}</h3>
+            <div class="mb-2">
+                <strong>Items:</strong>
+                <ul class="list-disc list-inside">
+                    ${outfit.items.map(item => `<li>${item}</li>`).join('')}
+                </ul>
+            </div>
+            <p class="text-gray-600">${outfit.explanation}</p>
+            <div class="mt-2 text-sm text-gray-500">
+                Confidence: ${(outfit.confidence * 100).toFixed(0)}%
+            </div>
+        `;
+        recommendationsDiv.appendChild(outfitDiv);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Weather recommendations persistence
+    const recommendationsDiv = document.getElementById('weather-recommendations');
+    const refreshBtn = document.getElementById('refresh-recommendations');
+    if (recommendationsDiv && refreshBtn) {
+        // Load from localStorage
+        const stored = localStorage.getItem('weatherRecommendations');
+        if (stored) {
+            try {
+                const recs = JSON.parse(stored);
+                if (Array.isArray(recs)) {
+                    displayWeatherRecommendations(recs);
+                }
+            } catch (e) { /* ignore */ }
+        }
+        // Refresh button handler
+        refreshBtn.addEventListener('click', async function() {
+            try {
+                const response = await fetch('/get-weather-recommendations');
+                const data = await response.json();
+                if (data.error) {
+                    console.error('Error:', data.error);
+                    return;
+                }
+                localStorage.setItem('weatherRecommendations', JSON.stringify(data.recommendations));
+                displayWeatherRecommendations(data.recommendations);
+            } catch (error) {
+                console.error('Error fetching recommendations:', error);
+            }
+        });
+    }
+});

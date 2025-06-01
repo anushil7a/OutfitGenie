@@ -85,6 +85,21 @@ def get_weather_recommendations(user_id, weather_data):
             raw_content = re.sub(r"\n?```$", "", raw_content)
         recommendations = json.loads(raw_content)
         #print(f"Recommendations: {recommendations}")
+        # Attach image_url to each item in each recommendation
+        clothing_items_dict = {item.short_description or item.type: item for item in clothing_items}
+        for rec in recommendations:
+            new_items = []
+            for item_name in rec.get('items', []):
+                # Try to match by short_description or type
+                item_obj = clothing_items_dict.get(item_name)
+                if not item_obj:
+                    # Try to match by type if not found by short_description
+                    item_obj = next((ci for ci in clothing_items if ci.type == item_name), None)
+                new_items.append({
+                    'name': item_name,
+                    'image_url': item_obj.image_url if item_obj else None
+                })
+            rec['items'] = new_items
         return recommendations
         
     except Exception as e:

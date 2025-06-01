@@ -510,12 +510,19 @@ function displayWeatherRecommendations(recommendations) {
     recommendations.forEach((outfit, index) => {
         const outfitDiv = document.createElement('div');
         outfitDiv.className = 'p-4 bg-gray-50 rounded-lg';
+        let itemsHtml = '';
+        outfit.items.forEach(item => {
+            itemsHtml += `<li class="flex items-center space-x-2">
+                <span>${item.name}</span>
+                ${item.image_url ? `<img src="${item.image_url}" alt="${item.name}" class="w-10 h-10 object-cover rounded cursor-zoom-in weather-item-img" data-img="${item.image_url}" style="display:inline-block;vertical-align:middle;" />` : ''}
+            </li>`;
+        });
         outfitDiv.innerHTML = `
             <h3 class="font-semibold mb-2">Outfit ${index + 1}</h3>
             <div class="mb-2">
                 <strong>Items:</strong>
                 <ul class="list-disc list-inside">
-                    ${outfit.items.map(item => `<li>${item}</li>`).join('')}
+                    ${itemsHtml}
                 </ul>
             </div>
             <p class="text-gray-600">${outfit.explanation}</p>
@@ -524,6 +531,53 @@ function displayWeatherRecommendations(recommendations) {
             </div>
         `;
         recommendationsDiv.appendChild(outfitDiv);
+    });
+    // Modal logic for zooming images
+    let modal = document.getElementById('weather-image-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'weather-image-modal';
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.width = '100%';
+        modal.style.height = '100%';
+        modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        modal.style.display = 'none';
+        modal.style.justifyContent = 'center';
+        modal.style.alignItems = 'center';
+        modal.style.zIndex = '9999';
+        modal.style.cursor = 'pointer';
+        modal.style.transition = 'opacity 0.3s ease-in-out';
+        modal.style.opacity = '0';
+        const modalImage = document.createElement('img');
+        modalImage.id = 'weather-modal-image';
+        modalImage.style.maxWidth = '90%';
+        modalImage.style.maxHeight = '90%';
+        modalImage.style.objectFit = 'contain';
+        modalImage.style.cursor = 'default';
+        modal.appendChild(modalImage);
+        document.body.appendChild(modal);
+        modal.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                modal.style.opacity = '0';
+                setTimeout(function() {
+                    modal.style.display = 'none';
+                }, 300);
+            }
+        });
+    }
+    document.querySelectorAll('.weather-item-img').forEach(img => {
+        img.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const modal = document.getElementById('weather-image-modal');
+            const modalImage = document.getElementById('weather-modal-image');
+            modalImage.src = this.dataset.img;
+            modal.style.display = 'flex';
+            setTimeout(function() {
+                modal.style.opacity = '1';
+            }, 10);
+        });
     });
 }
 

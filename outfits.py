@@ -347,6 +347,10 @@ def delete_outfit(outfit_id):
                 print(f"Error deleting image file: {str(e)}")
                 # Continue with database deletion even if file deletion fails
         
+        # Delete all related clothing items
+        ClothingItem.query.filter_by(outfit_id=outfit.id).delete()
+        print(f"Deleted all clothing items for outfit {outfit.id}")
+        
         # Delete from database
         print("Deleting outfit from database")
         db.session.delete(outfit)

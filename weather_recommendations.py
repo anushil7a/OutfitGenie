@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, session
 from flask_login import login_required, current_user
-from models import db, ClothingItem, RecommendationFeedback, User
+from models import db, ClothingItem, RecommendationFeedback, User, Outfit
 from openai import OpenAI
 import os
 import json
@@ -35,7 +35,7 @@ def get_weather_recommendations(user_id, weather_data):
             'user_preferences': user.preferences if user.preferences else {},
             'weather': weather_data
         }
-        #print(f"Wardrobe data: {wardrobe_data.get('clothing_items')}")
+        print(f"Wardrobe data: {wardrobe_data.get('clothing_items')}")
         
         # Call OpenAI API
         client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
@@ -51,6 +51,8 @@ def get_weather_recommendations(user_id, weather_data):
             "- items: list of clothing items to wear\n"
             "- explanation: why this outfit works for the weather\n"
             "- confidence: number between 0-1 indicating how confident you are in this recommendation\n\n"
+            "- outfit_id: the id of the outfit \n"
+            "- image_url: the url of the image of the outfit (a url for each item in the outfit)\n"
             "Respond ONLY with a valid JSON array. Do NOT include any text, code block markers, or explanations—just the raw JSON.\n\n"
             "Example format:\n"
             "[\n"
@@ -58,6 +60,8 @@ def get_weather_recommendations(user_id, weather_data):
             "        \"items\": [\"item1\", \"item2\"],\n"
             "        \"explanation\": \"This outfit works because...\",\n"
             "        \"confidence\": 0.9\n"
+            "        \"outfit_id\": 1\n"
+            "        \"image_url\": \"linkforimage (the url for each item in the outfit)\"\n"
             "    }\n"
             "]"
         )
@@ -73,31 +77,40 @@ def get_weather_recommendations(user_id, weather_data):
                     "content": prompt_content
                 }
             ],
-            max_tokens=300
+            max_tokens=500
         )
         
         # Parse the response
         raw_content = response.choices[0].message.content.strip()
-        #print("RAW OpenAI response:", raw_content)
-        # Remove Markdown code block if present
         if raw_content.startswith("```"):
             raw_content = re.sub(r"^```[a-zA-Z]*\n?", "", raw_content)
             raw_content = re.sub(r"\n?```$", "", raw_content)
-        recommendations = json.loads(raw_content)
-        #print(f"Recommendations: {recommendations}")
-        # Attach image_url to each item in each recommendation
+        try:
+            recommendations = json.loads(raw_content)
+        except json.JSONDecodeError as e:
+            logger.error(f"Error parsing AI response: {e}")
+            logger.error(f"Raw content: {raw_content}")
+            return []
+        print(f"Recommendations: {recommendations}")
+        
+        # Attach image_url and outfit_id to each item in each recommendation
         clothing_items_dict = {item.short_description or item.type: item for item in clothing_items}
+        user_outfits = {o.id: o.image_url for o in Outfit.query.filter_by(user_id=user_id).all()}
         for rec in recommendations:
             new_items = []
             for item_name in rec.get('items', []):
-                # Try to match by short_description or type
                 item_obj = clothing_items_dict.get(item_name)
                 if not item_obj:
-                    # Try to match by type if not found by short_description
                     item_obj = next((ci for ci in clothing_items if ci.type == item_name), None)
+                image_url = None
+                outfit_id = None
+                if item_obj:
+                    image_url = item_obj.image_url or user_outfits.get(item_obj.outfit_id)
+                    outfit_id = item_obj.outfit_id
                 new_items.append({
                     'name': item_name,
-                    'image_url': item_obj.image_url if item_obj else None
+                    'image_url': image_url,
+                    'outfit_id': outfit_id
                 })
             rec['items'] = new_items
         return recommendations

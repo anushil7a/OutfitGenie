@@ -19,6 +19,7 @@ from models import db, User, Outfit, Chat, RecommendationFeedback
 from routes.chat import chat_bp
 from routes.ai_data import ai_data_bp
 from utils.weather_utils import get_weather_data
+from weather_recommendations import weather_recommendations
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -52,6 +53,7 @@ app.register_blueprint(auth)
 app.register_blueprint(outfits)
 app.register_blueprint(chat_bp)
 app.register_blueprint(ai_data_bp)
+app.register_blueprint(weather_recommendations)
 
 # Configure OpenAI
 client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
@@ -83,15 +85,15 @@ def index():
         weather_data = session.get('weather_data')
         weather_timestamp = session.get('weather_timestamp')
         
-        logger.info(f"[DEBUG] Session data - Location: {location}")
-        logger.info(f"[DEBUG] Session data - Weather data: {weather_data}")
-        logger.info(f"[DEBUG] Session data - Weather timestamp: {weather_timestamp}")
+        #logger.info(f"[DEBUG] Session data - Location: {location}")
+        #logger.info(f"[DEBUG] Session data - Weather data: {weather_data}")
+        #logger.info(f"[DEBUG] Session data - Weather timestamp: {weather_timestamp}")
 
         # If we have a location but no weather data, or weather data is old, fetch new weather
         if location and (not weather_data or not weather_timestamp or 
            (datetime.utcnow() - datetime.fromisoformat(weather_timestamp)) > timedelta(minutes=30)):
             logger.info(f"[WEATHER CACHE MISS] Fetching new weather data for {location}")
-            weather_data = get_weather_data(location)
+            weather_data = get_weather_data(city=location)
             if weather_data:
                 session['weather_data'] = weather_data
                 session['weather_timestamp'] = datetime.utcnow().isoformat()
@@ -100,7 +102,7 @@ def index():
         elif weather_data:
             logger.info(f"[WEATHER CACHE HIT] Using cached weather data: {weather_data}")
 
-        logger.info(f"[DEBUG] Final weather data being sent to template: {weather_data}")
+        #logger.info(f"[DEBUG] Final weather data being sent to template: {weather_data}")
         return render_template('index.html',
                              weather=weather_data,
                              recommendations=None,  # Set recommendations to None
@@ -109,44 +111,9 @@ def index():
         logger.error(f"Error in index route: {str(e)}")
         return render_template('index.html', current_location=location)
 
-@app.route('/recommend', methods=['POST'])
-@login_required
-def get_recommendations():#isnt being usedd right now
-    data = request.json
-    occasion = data.get('occasion')
-    weather = data.get('weather')
-    
-    # Get weather data if not provided
-    if not weather:
-        weather = get_weather_data()
-    
-    # Generate outfit recommendations using OpenAI
-    recommendations = generate_outfit_recommendations(
-        occasion=occasion,
-        weather=weather,
-        user_preferences=current_user.preferences
-    )
-    
-    return jsonify(recommendations)
-
-@app.route('/feedback', methods=['POST'])
-@login_required
-def save_feedback(): #is it being used? no, not right now
-    data = request.json
-    outfit_id = data.get('outfit_id')
-    rating = data.get('rating')
-    
-    outfit = Outfit.query.get(outfit_id)
-    if outfit:
-        outfit.rating = rating
-        db.session.commit()
-        return jsonify({'message': 'Feedback saved successfully'})
-    
-    return jsonify({'error': 'Outfit not found'}), 404
-
 @app.route('/preferences', methods=['POST'])
 @login_required
-def save_preferences(): #is it being used? no, not right now
+def save_preferences(): 
     try:
         print("=== Preferences Save Request Start ===")
         data = request.json
@@ -195,24 +162,24 @@ def save_preferences(): #is it being used? no, not right now
 @app.route('/update-location', methods=['POST'])
 def update_location():
     try:
-        logger.info("[UPDATE LOCATION] Starting location update")
+        #logger.info("[UPDATE LOCATION] Starting location update")
         data = request.json
         location = data.get('location')
-        logger.info(f"[UPDATE LOCATION] Received location: {location}")
+        #logger.info(f"[UPDATE LOCATION] Received location: {location}")
         
         if not location:
-            logger.error("[UPDATE LOCATION] No location provided in request")
+            #logger.error("[UPDATE LOCATION] No location provided in request")
             return jsonify({'error': 'Location is required'}), 400
         
-        logger.info(f"[UPDATE LOCATION] Fetching weather data for {location}")
+        #logger.info(f"[UPDATE LOCATION] Fetching weather data for {location}")
         
         # Fetch weather data first
-        weather_data = get_weather_data(location)
+        weather_data = get_weather_data(city=location)
         if not weather_data:
             logger.error(f"[UPDATE LOCATION] Failed to get weather data for {location}")
             return jsonify({'error': 'Failed to get weather data for this location'}), 400
             
-        logger.info(f"[UPDATE LOCATION] Successfully got weather data: {weather_data}")
+        #logger.info(f"[UPDATE LOCATION] Successfully got weather data: {weather_data}")
             
         # Update session data
         session['location'] = location
@@ -222,8 +189,8 @@ def update_location():
         # Force session to be saved
         session.modified = True
         
-        logger.info(f"[UPDATE LOCATION] Successfully updated session with location: {location}")
-        logger.info(f"[UPDATE LOCATION] Weather data cached: {weather_data}")
+        #logger.info(f"[UPDATE LOCATION] Successfully updated session with location: {location}")
+        #logger.info(f"[UPDATE LOCATION] Weather data cached: {weather_data}")
         
         return jsonify({
             'success': True, 

@@ -232,11 +232,16 @@
             </div>
         </div>
 
-        <!-- Recommendations Section -->
+        <!-- Weather-based Recommendations Section -->
         <div class="mt-8 bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-2xl font-bold mb-4">Recommended Outfits</h2>
-            <div id="recommendations" class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <!-- Outfit cards will be dynamically added here -->
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">Weather-Based Outfit Recommendations</h2>
+                <button id="refresh-recommendations" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                    Refresh Recommendations
+                </button>
+            </div>
+            <div id="weather-recommendations" class="space-y-4">
+                <!-- Recommendations will be loaded here -->
             </div>
         </div>
     </main>
@@ -280,25 +285,6 @@
     </footer>
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    <script>
-    // Show success message on Formspree submit
-    const contactForm = document.getElementById('contact-form');
-    if (contactForm) {
-        contactForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const formData = new FormData(contactForm);
-            fetch(contactForm.action, {
-                method: 'POST',
-                body: formData,
-                headers: { 'Accept': 'application/json' }
-            }).then(response => {
-                if (response.ok) {
-                    document.getElementById('contact-success').classList.remove('hidden');
-                    contactForm.reset();
-                }
-            });
-        });
-    }
-    </script>
+    <!-- Weather recommendations JS moved to main.js -->
 </body>
 </html> 

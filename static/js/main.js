@@ -1,41 +1,41 @@
 // Delete outfit function - defined globally
-window.deleteOutfit = async (outfitId) => {
-    if (!confirm('Are you sure you want to delete this outfit? This action cannot be undone.')) {
-        return;
-    }
+// window.deleteOutfit = async (outfitId) => {
+//     if (!confirm('Are you sure you want to delete this outfit? This action cannot be undone.')) {
+//         return;
+//     }
 
-    try {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-        if (!csrfToken) {
-            throw new Error('CSRF token not found');
-        }
+//     try {
+//         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+//         if (!csrfToken) {
+//             throw new Error('CSRF token not found');
+//         }
 
-        const response = await fetch(`/delete-outfit/${outfitId}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            }
-        });
+//         const response = await fetch(`/delete-outfit/${outfitId}`, {
+//             method: 'POST',
+//             headers: {
+//                 'Content-Type': 'application/json',
+//                 'X-CSRFToken': csrfToken
+//             }
+//         });
 
-        if (response.ok) {
-            const outfitCard = document.querySelector(`[data-outfit-id="${outfitId}"]`);
-            if (outfitCard) {
-                outfitCard.remove();
-                // If no outfits left, reload the page
-                const remainingOutfits = document.querySelectorAll('[data-outfit-id]');
-                if (remainingOutfits.length === 0) {
-                    window.location.reload();
-                }
-            }
-        } else {
-            throw new Error('Failed to delete outfit');
-        }
-    } catch (error) {
-        console.error('Error deleting outfit:', error);
-        alert('Error deleting outfit. Please try again.');
-    }
-};
+//         if (response.ok) {
+//             const outfitCard = document.querySelector(`[data-outfit-id="${outfitId}"]`);
+//             if (outfitCard) {
+//                 outfitCard.remove();
+//                 // If no outfits left, reload the page
+//                 const remainingOutfits = document.querySelectorAll('[data-outfit-id]');
+//                 if (remainingOutfits.length === 0) {
+//                     window.location.reload();
+//                 }
+//             }
+//         } else {
+//             throw new Error('Failed to delete outfit');
+//         }
+//     } catch (error) {
+//         console.error('Error deleting outfit:', error);
+//         alert('Error deleting outfit. Please try again.');
+//     }
+// };
 
 document.addEventListener('DOMContentLoaded', () => {
     const clothingUpload = document.getElementById('clothing-upload');
@@ -81,11 +81,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             <img src="${e.target.result}" alt="Preview" class="w-full h-48 object-cover rounded-lg">
                             <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-lg">
                                 <div class="absolute top-2 right-2 flex space-x-2">
-                                    <button class="favorite-btn bg-white text-gray-600 rounded-full p-1 hover:bg-yellow-400 hover:text-yellow-600 transition-colors duration-200" onclick="toggleFavorite('${file.name}')">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                                        </svg>
-                                    </button>
                                     <button class="delete-btn bg-white text-gray-600 rounded-full p-1 hover:bg-red-500 hover:text-white transition-colors duration-200" onclick="removeSelectedFile('${file.name}')">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -102,43 +97,6 @@ document.addEventListener('DOMContentLoaded', () => {
             updateSelectedCount();
         }
     });
-
-    // Toggle favorite status for a single outfit
-    window.toggleFavorite = async (outfitId) => {
-        try {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-            if (!csrfToken) {
-                throw new Error('CSRF token not found');
-            }
-
-            const response = await fetch('/feedback', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify({
-                    outfit_id: outfitId,
-                    rating: 1
-                })
-            });
-
-            if (response.ok) {
-                const favoriteBtn = document.querySelector(`[data-outfit-id="${outfitId}"] .favorite-btn`);
-                if (favoriteBtn) {
-                    favoriteBtn.classList.toggle('bg-yellow-400');
-                    favoriteBtn.classList.toggle('text-yellow-600');
-                    favoriteBtn.classList.toggle('bg-white');
-                    favoriteBtn.classList.toggle('text-gray-600');
-                }
-            } else {
-                throw new Error('Failed to update favorite status');
-            }
-        } catch (error) {
-            console.error('Error toggling favorite:', error);
-            alert('Error updating favorite status. Please try again.');
-        }
-    };
 
     // Remove selected file
     window.removeSelectedFile = (fileName) => {
@@ -410,115 +368,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Get outfit recommendations
-    async function getRecommendations() {
-        try {
-            const response = await fetch('/recommend', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content
-                },
-                body: JSON.stringify({
-                    occasion: 'casual', // This should be dynamic based on user selection
-                    weather: null // This will be fetched from the backend
-                })
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                displayRecommendations(data.outfits);
-            }
-        } catch (error) {
-            console.error('Error getting recommendations:', error);
-        }
-    }
-
-    // Display outfit recommendations
-    function displayRecommendations(outfits) {
-        if (!recommendationsContainer) return;
-        
-        recommendationsContainer.innerHTML = '';
-
-        outfits.forEach(outfit => {
-            const outfitCard = document.createElement('div');
-            outfitCard.className = 'bg-white rounded-lg shadow-md overflow-hidden';
-            outfitCard.innerHTML = `
-                <div class="p-4">
-                    <h3 class="text-lg font-semibold mb-2">${outfit.occasion}</h3>
-                    <ul class="space-y-2">
-                        ${outfit.items.map(item => `<li class="text-gray-600">${item}</li>`).join('')}
-                    </ul>
-                    <div class="mt-4 flex justify-between">
-                        <button class="text-green-600 hover:text-green-800" onclick="rateOutfit(${outfit.id}, 'like')">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"></path>
-                            </svg>
-                        </button>
-                        <button class="text-red-600 hover:text-red-800" onclick="rateOutfit(${outfit.id}, 'dislike')">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018c.163 0 .326.02.485.06L17 4m-7 10v2a2 2 0 002 2h.095c.5 0 .905-.405.905-.905 0-.714.211-1.412.608-2.006L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5"></path>
-                            </svg>
-                        </button>
-                        <button class="text-blue-600 hover:text-blue-800" onclick="saveOutfit(${outfit.id})">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            `;
-            recommendationsContainer.appendChild(outfitCard);
-        });
-    }
-
-    // Rate an outfit
-    window.rateOutfit = async (outfitId, rating) => {
-        try {
-            const response = await fetch('/feedback', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content
-                },
-                body: JSON.stringify({
-                    outfit_id: outfitId,
-                    rating: rating === 'like' ? 1 : -1
-                })
-            });
-
-            if (response.ok) {
-                console.log('Rating saved');
-                // Optionally refresh recommendations
-                getRecommendations();
-            }
-        } catch (error) {
-            console.error('Error rating outfit:', error);
-        }
-    };
-
-    // Save an outfit
-    window.saveOutfit = async (outfitId) => {
-        try {
-            const response = await fetch('/save-outfit', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content
-                },
-                body: JSON.stringify({
-                    outfit_id: outfitId
-                })
-            });
-
-            if (response.ok) {
-                console.log('Outfit saved');
-            }
-        } catch (error) {
-            console.error('Error saving outfit:', error);
-        }
-    };
-
     // Handle location update
     const locationForm = document.getElementById('location-form');
     const updateLocationBtn = document.getElementById('update-location-btn');
@@ -620,36 +469,7 @@ const csrf = () => $('meta[name="csrf-token"]')?.content;
 // ---------------------------------------------------------------------------
 // 1.  SINGLE-CARD ACTIONS  (star / trash icons)
 // ---------------------------------------------------------------------------
-window.toggleFavorite = async (id) => {
-    const res = await fetch('/feedback', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
-        body: JSON.stringify({ outfit_id: id, rating: 1 })
-    });
-    if (!res.ok) return alert('Failed to update favorite');
-
-    const btn = $(`[data-outfit-id="${id}"] .favorite-btn`);
-    btn?.classList.toggle('bg-yellow-400');
-    btn?.classList.toggle('text-yellow-600');
-    btn?.classList.toggle('bg-white');
-    btn?.classList.toggle('text-gray-600');
-};
-
-// confirmDialog = false → skip the prompt (used for bulk delete)
-window.deleteOutfit = async (id, confirmDialog = true) => {
-    if (confirmDialog && !confirm('Delete this outfit forever?')) return;
-
-    const res = await fetch(`/delete-outfit/${id}`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() }
-    });
-    if (!res.ok) return alert('Failed to delete outfit');
-
-    $(`[data-outfit-id="${id}"]`)?.remove();
-    if ($$('[data-outfit-id]').length === 0) location.reload();
-};
+// Remove window.toggleFavorite definition from here to avoid redundancy
 
 // ---------------------------------------------------------------------------
 // 2.  TOOLBAR BUTTONS  (select / deselect / favorite-selected / delete-selected)
@@ -680,4 +500,116 @@ document.addEventListener('DOMContentLoaded', () => {
 
         for (const id of ids) await window.deleteOutfit(id, /* confirmDialog */ false);
     });
+});
+
+// Weather Recommendations Persistence Logic
+function displayWeatherRecommendations(recommendations) {
+    const recommendationsDiv = document.getElementById('weather-recommendations');
+    if (!recommendationsDiv) return;
+    recommendationsDiv.innerHTML = '';
+    recommendations.forEach((outfit, index) => {
+        const outfitDiv = document.createElement('div');
+        outfitDiv.className = 'p-4 bg-gray-50 rounded-lg';
+        let itemsHtml = '';
+        outfit.items.forEach(item => {
+            itemsHtml += `<li class="flex items-center space-x-2">
+                <span>${item.name}</span>
+                ${item.image_url ? `<img src="${item.image_url}" alt="${item.name}" class="w-10 h-10 object-cover rounded cursor-zoom-in weather-item-img" data-img="${item.image_url}" style="display:inline-block;vertical-align:middle;" />` : ''}
+            </li>`;
+        });
+        outfitDiv.innerHTML = `
+            <h3 class="font-semibold mb-2">Outfit ${index + 1}</h3>
+            <div class="mb-2">
+                <strong>Items:</strong>
+                <ul class="list-disc list-inside">
+                    ${itemsHtml}
+                </ul>
+            </div>
+            <p class="text-gray-600">${outfit.explanation}</p>
+            <div class="mt-2 text-sm text-gray-500">
+                Confidence: ${(outfit.confidence * 100).toFixed(0)}%
+            </div>
+        `;
+        recommendationsDiv.appendChild(outfitDiv);
+    });
+    // Modal logic for zooming images
+    let modal = document.getElementById('weather-image-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'weather-image-modal';
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.width = '100%';
+        modal.style.height = '100%';
+        modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        modal.style.display = 'none';
+        modal.style.justifyContent = 'center';
+        modal.style.alignItems = 'center';
+        modal.style.zIndex = '9999';
+        modal.style.cursor = 'pointer';
+        modal.style.transition = 'opacity 0.3s ease-in-out';
+        modal.style.opacity = '0';
+        const modalImage = document.createElement('img');
+        modalImage.id = 'weather-modal-image';
+        modalImage.style.maxWidth = '90%';
+        modalImage.style.maxHeight = '90%';
+        modalImage.style.objectFit = 'contain';
+        modalImage.style.cursor = 'default';
+        modal.appendChild(modalImage);
+        document.body.appendChild(modal);
+        modal.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                modal.style.opacity = '0';
+                setTimeout(function() {
+                    modal.style.display = 'none';
+                }, 300);
+            }
+        });
+    }
+    document.querySelectorAll('.weather-item-img').forEach(img => {
+        img.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const modal = document.getElementById('weather-image-modal');
+            const modalImage = document.getElementById('weather-modal-image');
+            modalImage.src = this.dataset.img;
+            modal.style.display = 'flex';
+            setTimeout(function() {
+                modal.style.opacity = '1';
+            }, 10);
+        });
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Weather recommendations persistence
+    const recommendationsDiv = document.getElementById('weather-recommendations');
+    const refreshBtn = document.getElementById('refresh-recommendations');
+    if (recommendationsDiv && refreshBtn) {
+        // Load from localStorage
+        const stored = localStorage.getItem('weatherRecommendations');
+        if (stored) {
+            try {
+                const recs = JSON.parse(stored);
+                if (Array.isArray(recs)) {
+                    displayWeatherRecommendations(recs);
+                }
+            } catch (e) { /* ignore */ }
+        }
+        // Refresh button handler
+        refreshBtn.addEventListener('click', async function() {
+            try {
+                const response = await fetch('/get-weather-recommendations');
+                const data = await response.json();
+                if (data.error) {
+                    console.error('Error:', data.error);
+                    return;
+                }
+                localStorage.setItem('weatherRecommendations', JSON.stringify(data.recommendations));
+                displayWeatherRecommendations(data.recommendations);
+            } catch (error) {
+                console.error('Error fetching recommendations:', error);
+            }
+        });
+    }
 });

@@ -162,7 +162,7 @@ def generate_short_description(item, bullet_points):
         Material: {item['material']}
         Key Features: {item['key_features']}
         Overall Vibe: {item['overall_vibe']}
-
+        
         And the detailed bullet points:
         {bullet_points}
 

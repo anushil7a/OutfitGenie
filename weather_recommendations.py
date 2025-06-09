@@ -35,6 +35,7 @@ def get_weather_recommendations(user_id, weather_data):
                 } for f in feedback
             ],
             'user_preferences': user.preferences if user.preferences else {},
+            'user_notes': user.ai_notes if user.ai_notes else "",
             'weather': weather_data
         }
         #print(f"Wardrobe data: {wardrobe_data.get('clothing_items')}")
@@ -47,11 +48,12 @@ def get_weather_recommendations(user_id, weather_data):
             "Recommend 3 weather-appropriate outfits using only the clothes the user has.\n"
             "For each outfit:\n"
             "1. List the specific items to wear\n"
-            "2. Explain why it's suitable for the current weather\n"
-            "3. Consider the user's feedback history to avoid disliked combinations\n\n"
+            "2. Explain why it's suitable for the current weather considering the user's feedback history, preferences, and user_notes\n"
+            "3. Try making the 3 recommendations as different as possible from each other while still being weather-appropriate and using the user's wardrobe, feedback history, preferences, and user_notes\n"
+            "4. Make sure the recomendations are logical and make sense. For example,  dont recommend 2 shirts or 2 pants, unless it makes sense. (Try having at least one different item in each recommendation with accessories if it makes sense)\n"
             "Format your response as a JSON array of outfits, each with:\n"
             "- items: list of clothing items to wear\n"
-            "- explanation: why this outfit works for the weather\n"
+            "- explanation: why this outfit works for the weather considering the user's feedback history, preferences, and user_notes\n"
             "- confidence: number between 0-1 indicating how confident you are in this recommendation\n\n"
             "- image_url: the url of the image of the outfit (a url for each item in the outfit)\n"
             "Respond ONLY with a valid JSON array. Do NOT include any text, code block markers, or explanations—just the raw JSON.\n\n"

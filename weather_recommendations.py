@@ -39,6 +39,8 @@ def get_weather_recommendations(user_id, weather_data):
             'weather': weather_data
         }
         #print(f"Wardrobe data: {wardrobe_data.get('clothing_items')}")
+        print(f"User preferences: {user.preferences}")
+        #print(f"User notes: {user.ai_notes}")
         
         # Call OpenAI API
         client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
@@ -51,6 +53,7 @@ def get_weather_recommendations(user_id, weather_data):
             "2. Explain why it's suitable for the current weather considering the user's feedback history, preferences, and user_notes\n"
             "3. Try making the 3 recommendations as different as possible from each other while still being weather-appropriate and using the user's wardrobe, feedback history, preferences, and user_notes\n"
             "4. Make sure the recomendations are logical and make sense. For example,  dont recommend 2 shirts or 2 pants, unless it makes sense. (Try having at least one different item in each recommendation with accessories if it makes sense)\n"
+            "5. Make sure the recomendations are weather-appropriate and make sense. For example, dont recommend a winter coat in the summer or a summer dress in the winter (unless user preferences are to do so).\n"
             "Format your response as a JSON array of outfits, each with:\n"
             "- items: list of clothing items to wear\n"
             "- explanation: why this outfit works for the weather considering the user's feedback history, preferences, and user_notes\n"
@@ -111,8 +114,13 @@ def get_weather_recommendations(user_id, weather_data):
                 image_url = None
                 item_id = None
                 if idx < len(image_urls):
-                    image_url = image_urls[idx].get('url')
-                    item_id = image_urls[idx].get('id')
+                    img = image_urls[idx]
+                    if isinstance(img, dict):
+                        image_url = img.get('url')
+                        item_id = img.get('id')
+                    elif isinstance(img, str):
+                        image_url = img
+                        item_id = None
                 new_items.append({
                     'name': item_name,
                     'image_url': image_url,

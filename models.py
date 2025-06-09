@@ -92,5 +92,6 @@ class ClothingItem(db.Model):
             'material': self.material,
             'key_features': self.key_features,
             'overall_vibe': self.overall_vibe,
-            'short_description': self.short_description
+            'short_description': self.short_description,
+            'image_url': self.image_url
         } 

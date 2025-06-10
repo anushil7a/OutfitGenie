@@ -45,38 +45,48 @@ def get_weather_recommendations(user_id, weather_data):
         # Call OpenAI API
         client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
         prompt_content = (
-            "Given this data about the user's wardrobe, feedback history, and current weather:\n"
+            "Here’s the user’s wardrobe, preferences, past outfit feedback, and the current weather (in Fahrenheit):\n"
+            "wardrobe_data includes clothes they own, with stuff like name, type (top, pants, etc.) and image_url.\n"
+            "user.preferences shows what they actually like—like only wearing formal outfits, avoiding certain colors, or liking loose fits.\n"
+            "user_notes might include stuff like how they run hot/cold, if they’ve worn something recently, or things they just don’t vibe with.\n"
             f"{json.dumps(wardrobe_data, indent=2)}\n\n"
-            "Recommend 3 weather-appropriate outfits using only the clothes the user has.\n"
-            "For each outfit:\n"
-            "1. List the specific items to wear\n"
-            "2. Explain why it's suitable for the current weather considering the user's feedback history, preferences, and user_notes\n"
-            "3. Try making the 3 recommendations as different as possible from each other while still being weather-appropriate and using the user's wardrobe, feedback history, preferences, and user_notes\n"
-            "4. Make sure the recomendations are logical and make sense. For example,  dont recommend 2 shirts or 2 pants, unless it makes sense. (Try having at least one different item in each recommendation with accessories if it makes sense)\n"
-            "5. Make sure the recomendations are weather-appropriate and make sense. For example, dont recommend a winter coat in the summer or a summer dress in the winter (unless user preferences are to do so).\n"
-            "Format your response as a JSON array of outfits, each with:\n"
-            "- items: list of clothing items to wear\n"
-            "- explanation: why this outfit works for the weather considering the user's feedback history, preferences, and user_notes\n"
-            "- confidence: number between 0-1 indicating how confident you are in this recommendation\n\n"
-            "- image_url: the url of the image of the outfit (a url for each item in the outfit)\n"
-            "Respond ONLY with a valid JSON array. Do NOT include any text, code block markers, or explanations—just the raw JSON.\n\n"
+            "Give back 3 outfit ideas that match the weather *and* the user’s style. Use only what they already have.\n"
+            "Make sure you:\n"
+            "1. Only recommend outfits that match the user’s vibe. If they prefer formal, keep it clean—even if it’s hot. Pick lighter formal stuff, like short-sleeve shirts or slacks.\n"
+            "2. Each outfit should:\n"
+            "   - Have 3 to 6 pieces max, but make each piece's are different from the others and makes sense\n"
+            "   - Match the weather (don’t throw in a hoodie if it’s 90°F out)\n"
+            "   - Be different from the others—switch up tops, bottoms, shoes, or accessories so each look feels fresh\n"
+            "   - Actually make sense (don’t suggest two pairs of pants or weird layers unless there’s a good reason)\n"
+            "3. Keep the explanation chill. Write like you’re helping a friend pick an outfit, not giving a robot report. Talk about why it works for the weather, what they like, and what they’ve worn before.\n"
+            "4. Confidence (0–1) means how good the match is based on all that info.\n"
+            "5. If there’s no image for something, just drop null or a placeholder.\n\n"
+            "Return only a valid JSON array. Each outfit should include:\n"
+            "- items: list of clothing item names\n"
+            "- explanation: a short, chill reason this outfit works for today (mention the weather and temperature, the user's preferences, and the user's wardrobe)\n"
+            "- confidence: a number between 0 and 1\n"
+            "- image_url: list of objects like {\"id\": item_id, \"url\": \"image_link\"} (or null)\n\n"
+            "Nothing else—just the JSON array.\n\n"
             "Example format:\n"
             "[\n"
-            "    {\n"
-            "        \"items\": [\"Blue Jeans\", \"White T-shirt\", \"Black Shoes\"],\n"
-            "        \"explanation\": \"This outfit works because...\",\n"
-            "        \"confidence\": 0.9\n"
-            "        \"image_url\": [{\"id\": 1, \"url\": \"linkforimage\"}, {\"id\": 2, \"url\": \"linkforimage\"}, {\"id\": 3, \"url\": \"linkforimage\"}]\n"
-            "    }\n"
+            "  {\n"
+            "    \"items\": [\"Tan Chinos\", \"Light Blue Button-Up\", \"White Sneakers\"],\n"
+            "    \"explanation\": \"This one's a go-to look for warm weather. The button-up keeps it sharp but breathable, and the sneakers keep it comfy without looking too casual.\",\n"
+            "    \"confidence\": 0.93,\n"
+            "    \"image_url\": [\n"
+            "      {\"id\": 1, \"url\": \"link_to_image1\"},\n"
+            "      {\"id\": 2, \"url\": \"link_to_image2\"},\n"
+            "      {\"id\": 3, \"url\": \"link_to_image3\"}\n"
+            "    ]\n"
+            "  }\n"
             "]"
-            
         )
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a fashion expert AI that recommends outfits based on weather and user's wardrobe.\nConsider the user's feedback history and preferences when making recommendations.\nFocus on practical, weather-appropriate outfits using only the clothes the user has."
+                    "content": "You are a fashion expert AI that recommends outfits based on weather (in Fahrenheit) and user's wardrobe.\nConsider the user's feedback history and preferences when making recommendations.\nFocus on practical, weather-appropriate outfits using only the clothes the user has. Make sure to use the weather information to make the recommendations."
                 },
                 {
                     "role": "user",

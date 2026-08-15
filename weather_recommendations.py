@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, session
 from flask_login import login_required, current_user
 from models import db, ClothingItem, RecommendationFeedback, User, Outfit
-from openai import OpenAI
+from utils.llm import chat
 import os
 import json
 import logging
@@ -42,8 +42,7 @@ def get_weather_recommendations(user_id, weather_data):
         print(f"User preferences: {user.preferences}")
         #print(f"User notes: {user.ai_notes}")
         
-        # Call OpenAI API
-        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        # Call the model through utils/llm.py
         prompt_content = (
             "Here’s the user’s wardrobe, preferences, past outfit feedback, and the current weather (in Fahrenheit):\n"
             "wardrobe_data includes clothes they own, with stuff like name, type (top, pants, etc.) and image_url.\n"
@@ -81,8 +80,7 @@ def get_weather_recommendations(user_id, weather_data):
             "  }\n"
             "]"
         )
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
+        raw_content = chat(
             messages=[
                 {
                     "role": "system",
@@ -93,11 +91,11 @@ def get_weather_recommendations(user_id, weather_data):
                     "content": prompt_content
                 }
             ],
-            max_tokens=900
+            max_output_tokens=900,
         )
-        
+
         # Parse the response
-        raw_content = response.choices[0].message.content.strip()
+        raw_content = (raw_content or "").strip()
         if raw_content.startswith("```"):
             raw_content = re.sub(r"^```[a-zA-Z]*\n?", "", raw_content)
             raw_content = re.sub(r"\n?```$", "", raw_content)

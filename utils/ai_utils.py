@@ -1,8 +1,8 @@
-import openai
 from PIL import Image
 import io
 import os
 from config import Config
+from utils.llm import chat
 
 def get_weather_recommendations(weather_data):
     """
@@ -28,8 +28,7 @@ def get_weather_recommendations(weather_data):
         }}
         """
 
-        response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
+        return chat(
             messages=[
                 {
                     "role": "system",
@@ -40,10 +39,8 @@ def get_weather_recommendations(weather_data):
                     "content": prompt
                 }
             ],
-            max_tokens=500
+            max_output_tokens=500,
         )
-
-        return response.choices[0].message.content
 
     except Exception as e:
         print(f"Error getting weather recommendations: {str(e)}")
@@ -71,8 +68,7 @@ def process_user_feedback(outfit_id, rating, user_preferences):
         }}
         """
 
-        response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
+        return chat(
             messages=[
                 {
                     "role": "system",
@@ -83,10 +79,8 @@ def process_user_feedback(outfit_id, rating, user_preferences):
                     "content": prompt
                 }
             ],
-            max_tokens=500
+            max_output_tokens=500,
         )
-
-        return response.choices[0].message.content
 
     except Exception as e:
         print(f"Error processing feedback: {str(e)}")

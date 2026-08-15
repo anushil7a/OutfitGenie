@@ -1,417 +1,399 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const chatForm = document.getElementById('chat-form');
-    const messageInput = document.getElementById('message-input');
-    const chatMessages = document.getElementById('chat-messages');
-    const chatHistory = document.getElementById('chat-history');
-    const recommendationMode = document.getElementById('recommendation-mode');
-    const modeLabel = document.getElementById('mode-label');
-    let currentChatId = null;
-    let feedbackMap = {};
+/* ══════════════════════════════════════════════════════════════════════
+   OutfitGenie — the stylist
+   The AI's replies are set in serif and run unbubbled; yours are small,
+   mono and right-aligned. Images and the theme come from ui.js.
+   ══════════════════════════════════════════════════════════════════════ */
+(function () {
+  "use strict";
 
-    // Example questions pool
-    const exampleQuestions = [
-        "What should I wear for a casual dinner?",
-        "Can you suggest an outfit for a job interview?",
-        "What goes well with my blue shirt?",
-        "Help me create a summer outfit",
-        "What should I wear to a wedding?",
-        "How can I style my black jeans?",
-        "What outfit is good for a rainy day?",
-        "Suggest something for a first date",
-        "What can I wear to look taller?",
-        "How do I dress for a business meeting?",
-        "What goes well with white sneakers?",
-        "Can you help me pick an outfit for a party?",
-        "What should I wear for a winter walk?",
-        "How do I style a denim jacket?",
-        "What is a good outfit for brunch?",
-        "How can I layer clothes for fall?",
-        "What should I wear to a concert?",
-        "Suggest a comfy travel outfit",
-        "What can I wear for a beach day?",
-        "How do I dress for a hot summer day?",
-        "What should I wear for a workout?",
-        "How do I style a floral dress?",
-        "What goes well with a red skirt?",
-        "What should I wear for a family gathering?",
-        "How do I dress up casual clothes?",
-        "What is a good outfit for hiking?",
-        "How do I style boots in spring?",
-        "What should I wear for a movie night?",
-        "How do I make my outfit look more formal?",
-        "What can I wear for a cozy night in?"
-    ];
+  var EXAMPLES = [
+    "What should I wear for a casual dinner?",
+    "Can you suggest an outfit for a job interview?",
+    "What goes well with my blue shirt?",
+    "Help me put together a summer outfit",
+    "What should I wear to a wedding?",
+    "How can I style my black jeans?",
+    "What works for a rainy day?",
+    "Suggest something for a first date",
+    "What can I wear to look taller?",
+    "How do I dress for a business meeting?",
+    "What goes well with white sneakers?",
+    "Pick me an outfit for a party",
+    "What should I wear for a winter walk?",
+    "How do I style a denim jacket?",
+    "What's a good outfit for brunch?",
+    "How can I layer for autumn?",
+    "What should I wear to a concert?",
+    "Suggest a comfortable travel outfit",
+    "What can I wear for a beach day?",
+    "How do I dress for a hot day?",
+    "What should I wear to train in?",
+    "How do I style a floral dress?",
+    "What goes with a red skirt?",
+    "How do I dress up something casual?",
+    "What's a good outfit for hiking?",
+    "How do I make this look more formal?"
+  ];
 
-    // Update mode label based on toggle state
-    function updateModeLabel() {
-        if (recommendationMode.checked) {
-            modeLabel.textContent = 'Recommend from my wardrobe only';
-            modeLabel.classList.remove('text-gray-700');
-            modeLabel.classList.add('text-indigo-600', 'font-semibold');
-        } else {
-            modeLabel.textContent = 'Recommend from all clothes';
-            modeLabel.classList.remove('text-indigo-600', 'font-semibold');
-            modeLabel.classList.add('text-gray-700');
+  function csrfToken() {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.content : null;
+  }
+
+  function say(message, isError) {
+    if (window.ogToast) window.ogToast(message, isError);
+    else if (isError) console.error(message);
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    var form = document.getElementById("chat-form");
+    var input = document.getElementById("message-input");
+    var log = document.getElementById("chat-messages");
+    var rail = document.getElementById("chat-history");
+    var modeSwitch = document.getElementById("recommendation-mode");
+    var modeLabel = document.getElementById("mode-label");
+    var newChatBtn = document.getElementById("new-chat-btn");
+
+    if (!form || !log) return;
+
+    var currentChatId = null;
+    var feedbackMap = {};
+    // Tracked rather than scraped back out of the DOM, which is what the
+    // old code did by looking for a Tailwind class on the last bubble.
+    var lastUserMessage = "";
+
+    /* ── wardrobe-only switch ───────────────────────────────────────── */
+    function wardrobeOnly() {
+      return modeSwitch && modeSwitch.getAttribute("aria-checked") === "true";
+    }
+    if (modeSwitch) {
+      modeSwitch.addEventListener("click", function () {
+        var next = !wardrobeOnly();
+        modeSwitch.setAttribute("aria-checked", next ? "true" : "false");
+        if (modeLabel) {
+          modeLabel.textContent = next ? "Only what you own" : "Anything";
         }
+      });
     }
 
-    // Add toggle switch event listener
-    recommendationMode.addEventListener('change', updateModeLabel);
-
-    // Function to show welcome messages
-    function showWelcomeMessages() {
-        addMessage('AI', 'Hi! I\'m your AI Fashion Assistant. I can help you create perfect outfits using your uploaded clothes. You can ask me things like:', true);
-        // Pick 4 random questions
-        const shuffled = exampleQuestions.sort(() => 0.5 - Math.random());
-        const selected = shuffled.slice(0, 4);
-        const listHtml = '<ul class="list-disc pl-6 space-y-1">' + selected.map(q => `<li>${q}</li>`).join('') + '</ul>';
-        addMessage('AI', listHtml, [], false);
+    /* ── rendering ──────────────────────────────────────────────────── */
+    function addUserMessage(text) {
+      lastUserMessage = text;
+      var el = document.createElement("div");
+      el.className = "bubble-you";
+      el.textContent = text;                 // user text is never HTML
+      log.appendChild(el);
+      log.scrollTop = log.scrollHeight;
     }
 
-    // Show welcome messages on initial load
-    showWelcomeMessages();
+    function addReply(options) {
+      var text = options.text || "";
+      var images = Array.isArray(options.images) ? options.images : [];
+      var question = options.question || lastUserMessage;
 
-    // Load chat history
-    loadChatHistory(1);
+      var wrap = document.createElement("div");
+      wrap.className = "reply";
 
-    // Fetch all feedback for the user
+      var mark = document.createElement("p");
+      mark.className = "t-data reply-mark";
+      mark.textContent = "Stylist";
+      wrap.appendChild(mark);
+
+      var body = document.createElement("div");
+      body.className = "reply-body";
+      if (options.html) body.innerHTML = text;
+      else body.textContent = text;
+      wrap.appendChild(body);
+
+      if (images.length) {
+        var strip = document.createElement("div");
+        strip.className = "reply-images";
+        images.forEach(function (url) {
+          var img = document.createElement("img");
+          img.src = url;
+          img.alt = "Recommended piece";
+          img.loading = "lazy";
+          img.setAttribute("data-full-image", url);   // ui.js lightbox
+          strip.appendChild(img);
+        });
+        wrap.appendChild(strip);
+      }
+
+      if (options.rateable) {
+        wrap.appendChild(buildFeedback(text, question));
+      }
+
+      log.appendChild(wrap);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function buildFeedback(recommendation, question) {
+      var key = recommendation + "||" + question;
+      var chosen = feedbackMap[key] || null;
+
+      var row = document.createElement("div");
+      row.className = "feedback-row";
+
+      ["like", "dislike"].forEach(function (kind) {
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = "feedback-btn";
+        button.textContent = kind === "like" ? "Good call" : "Not for me";
+        button.setAttribute("aria-pressed", chosen === kind ? "true" : "false");
+
+        button.addEventListener("click", async function () {
+          var next = chosen === kind ? "remove" : kind;
+          var token = csrfToken();
+          if (!token) { say("Your session expired. Reload the page.", true); return; }
+
+          try {
+            var response = await fetch("/recommendation-feedback", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "X-CSRFToken": token },
+              body: JSON.stringify({
+                recommendation: recommendation,
+                feedback: next,
+                question: question,
+                context: { timestamp: new Date().toISOString() }
+              })
+            });
+            if (!response.ok) throw new Error();
+
+            chosen = next === "remove" ? null : kind;
+            feedbackMap[key] = chosen;
+            Array.prototype.forEach.call(row.children, function (other) {
+              other.setAttribute("aria-pressed", "false");
+            });
+            if (chosen) button.setAttribute("aria-pressed", "true");
+            say(chosen ? "Noted" : "Feedback cleared");
+          } catch (error) {
+            say("Couldn't save that. Try again.", true);
+          }
+        });
+
+        row.appendChild(button);
+      });
+
+      return row;
+    }
+
+    function showWelcome() {
+      addReply({
+        text: "I can put outfits together from the pieces you've uploaded. Things worth asking:",
+        rateable: false
+      });
+      var picks = EXAMPLES.slice().sort(function () { return 0.5 - Math.random(); }).slice(0, 4);
+      addReply({
+        html: true,
+        text: "<ul>" + picks.map(function (q) {
+          return "<li>" + q.replace(/[<>&]/g, "") + "</li>";
+        }).join("") + "</ul>",
+        rateable: false
+      });
+    }
+
+    /* ── data ───────────────────────────────────────────────────────── */
     async function fetchFeedback() {
-        try {
-            const response = await fetch('/chat-feedback');
-            const data = await response.json();
-            feedbackMap = {};
-            data.feedback.forEach(entry => {
-                // Key by recommendation + question
-                feedbackMap[entry.recommendation + '||' + entry.question] = entry.feedback;
-            });
-        } catch (error) {
-            console.error('Error fetching feedback:', error);
-        }
+      try {
+        var response = await fetch("/chat-feedback");
+        var data = await response.json();
+        feedbackMap = {};
+        (data.feedback || []).forEach(function (entry) {
+          feedbackMap[entry.recommendation + "||" + entry.question] = entry.feedback;
+        });
+      } catch (error) { /* feedback is decoration; the chat still works */ }
     }
 
-    // On page load, fetch feedback
-    fetchFeedback();
+    async function loadHistory(page) {
+      page = page || 1;
+      if (!rail) return;
+      try {
+        var response = await fetch("/chat-history?page=" + page);
+        var data = await response.json();
 
-    // Handle form submission
-    chatForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const message = messageInput.value.trim();
-        if (!message) return;
+        rail.innerHTML = "";
+        if (!data.chats || !data.chats.length) {
+          var none = document.createElement("p");
+          none.className = "t-data t-quiet";
+          none.textContent = "No past reads yet";
+          rail.appendChild(none);
+          return;
+        }
 
-        // Add user message to chat
-        addMessage('You', message);
-        messageInput.value = '';
+        var list = document.createElement("div");
+        list.className = "chat-list";
 
-        try {
-            const response = await fetch('/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-                },
-                body: JSON.stringify({ 
-                    message,
-                    chat_id: currentChatId,  // Include current chat ID if it exists
-                    wardrobe_only: recommendationMode.checked  // Include recommendation mode
-                })
-            });
+        data.chats.forEach(function (entry) {
+          var item = document.createElement("div");
+          item.className = "chat-item" + (entry.id === currentChatId ? " is-current" : "");
 
-            const data = await response.json();
-            
-            if (response.ok) {
-                // Update current chat ID
-                currentChatId = data.chat_id;
-                
-                // Add AI response to chat
-                addMessage('AI', data.response, data.image_urls, true);
-                
-                // Update chat history
-                loadChatHistory();
-            } else {
-                addMessage('AI', 'Sorry, I encountered an error. Please try again.', true);
+          var open = document.createElement("button");
+          open.type = "button";
+          open.className = "chat-item-open";
+          var preview = document.createElement("span");
+          preview.className = "chat-item-preview";
+          preview.textContent = entry.preview;
+          var time = document.createElement("span");
+          time.className = "chat-item-time";
+          time.textContent = new Date(entry.timestamp).toLocaleDateString(undefined,
+            { day: "2-digit", month: "short" });
+          open.appendChild(preview);
+          open.appendChild(time);
+          open.addEventListener("click", function () { loadChat(entry.id); });
+
+          var remove = document.createElement("button");
+          remove.type = "button";
+          remove.className = "icon-btn is-danger";
+          remove.setAttribute("aria-label", "Delete this read");
+          remove.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+            'stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"/></svg>';
+          remove.addEventListener("click", async function (event) {
+            event.stopPropagation();
+            if (!confirm("Delete this read? This can't be undone.")) return;
+            try {
+              var res = await fetch("/chat/" + entry.id, {
+                method: "DELETE",
+                headers: { "X-CSRFToken": csrfToken() }
+              });
+              if (!res.ok) throw new Error();
+              if (entry.id === currentChatId) {
+                log.innerHTML = "";
+                currentChatId = null;
+                showWelcome();
+              }
+              say("Read deleted");
+              loadHistory(page);
+            } catch (error) {
+              say("Couldn't delete that read. Try again.", true);
             }
-        } catch (error) {
-            console.error('Error:', error);
-            addMessage('AI', 'Sorry, I encountered an error. Please try again.', true);
-        }
-    });
+          });
 
-    // Function to add a message to the chat
-    function addMessage(sender, text, imageUrls = [], isRecommendation = false, question = null) {
-        const messagesDiv = document.getElementById('chat-messages');
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `flex ${sender === 'You' ? 'justify-end' : 'justify-start'}`;
-        
-        let messageContent = `
-            <div class="max-w-[70%] ${sender === 'You' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-800'} rounded-lg p-3">
-                <p class="text-sm">${text}</p>
-        `;
-        
-        // Add images if present
-        if (imageUrls && imageUrls.length > 0) {
-            messageContent += '<div class="mt-2 flex flex-wrap gap-2">';
-            imageUrls.forEach(url => {
-                messageContent += `
-                    <img src="${url}" alt="Recommended item" class="w-20 h-20 object-cover rounded-lg">
-                `;
-            });
-            messageContent += '</div>';
+          item.appendChild(open);
+          item.appendChild(remove);
+          list.appendChild(item);
+        });
+
+        rail.appendChild(list);
+
+        if (data.pages > 1) {
+          var pager = document.createElement("div");
+          pager.className = "chat-pager";
+
+          var prev = document.createElement("button");
+          prev.type = "button";
+          prev.className = "btn btn-ghost";
+          prev.textContent = "Prev";
+          prev.disabled = !data.has_prev;
+          prev.addEventListener("click", function () { loadHistory(data.page - 1); });
+
+          var info = document.createElement("span");
+          info.className = "t-data t-quiet";
+          info.textContent = data.page + " / " + data.pages;
+
+          var next = document.createElement("button");
+          next.type = "button";
+          next.className = "btn btn-ghost";
+          next.textContent = "Next";
+          next.disabled = !data.has_next;
+          next.addEventListener("click", function () { loadHistory(data.page + 1); });
+
+          pager.appendChild(prev);
+          pager.appendChild(info);
+          pager.appendChild(next);
+          rail.appendChild(pager);
         }
-        
-        // Add feedback buttons for AI recommendations
-        if (isRecommendation && sender === 'AI') {
-            // Get the user's question from the previous message if not provided
-            let msgQuestion = question;
-            if (!msgQuestion) {
-                const messages = chatMessages.querySelectorAll('.flex');
-                msgQuestion = Array.from(messages)
-                    .reverse()
-                    .find(msg => msg.querySelector('.bg-indigo-600'))?.querySelector('.text-sm')?.textContent || '';
-            }
-            // Track feedback state
-            let currentFeedback = feedbackMap[text + '||' + msgQuestion] || null;
-            messageContent += `
-                <div class="mt-2 flex justify-end space-x-2">
-                    <button class="feedback-btn px-2 py-1 text-xs rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300" data-feedback="like" data-recommendation="${text}" data-question="${msgQuestion}">
-                        👍 Like
-                    </button>
-                    <button class="feedback-btn px-2 py-1 text-xs rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300" data-feedback="dislike" data-recommendation="${text}" data-question="${msgQuestion}">
-                        👎 Dislike
-                    </button>
-                </div>
-            `;
-        }
-        
-        messageContent += '</div>';
-        messageDiv.innerHTML = messageContent;
-        messagesDiv.appendChild(messageDiv);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        
-        // Add event listeners to feedback buttons if they exist
-        if (isRecommendation && sender === 'AI') {
-            let msgQuestion = question;
-            if (!msgQuestion) {
-                const messages = chatMessages.querySelectorAll('.flex');
-                msgQuestion = Array.from(messages)
-                    .reverse()
-                    .find(msg => msg.querySelector('.bg-indigo-600'))?.querySelector('.text-sm')?.textContent || '';
-            }
-            let selectedFeedback = feedbackMap[text + '||' + msgQuestion] || null;
-            const likeBtn = messageDiv.querySelector('button[data-feedback="like"]');
-            const dislikeBtn = messageDiv.querySelector('button[data-feedback="dislike"]');
-            const feedbackBtns = [likeBtn, dislikeBtn];
-            // Set initial button state
-            if (selectedFeedback === 'like') likeBtn.classList.add('bg-green-200');
-            if (selectedFeedback === 'dislike') dislikeBtn.classList.add('bg-red-200');
-            feedbackBtns.forEach(button => {
-                button.addEventListener('click', async () => {
-                    const feedback = button.dataset.feedback;
-                    const recommendation = button.dataset.recommendation;
-                    const question = button.dataset.question;
-                    // Toggle logic
-                    let newFeedback;
-                    if (selectedFeedback === feedback) {
-                        newFeedback = 'remove';
-                    } else {
-                        newFeedback = feedback;
-                    }
-                    try {
-                        const response = await fetch('/recommendation-feedback', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-                            },
-                            body: JSON.stringify({
-                                recommendation: recommendation,
-                                feedback: newFeedback,
-                                question: question,
-                                context: {
-                                    timestamp: new Date().toISOString()
-                                }
-                            })
-                        });
-                        if (response.ok) {
-                            if (newFeedback === 'remove') {
-                                selectedFeedback = null;
-                                feedbackMap[recommendation + '||' + question] = null;
-                                feedbackBtns.forEach(btn => {
-                                    btn.classList.remove('bg-green-200', 'bg-red-200', 'opacity-50');
-                                    btn.disabled = false;
-                                });
-                            } else {
-                                selectedFeedback = feedback;
-                                feedbackMap[recommendation + '||' + question] = feedback;
-                                feedbackBtns.forEach(btn => {
-                                    btn.classList.remove('bg-green-200', 'bg-red-200', 'opacity-50');
-                                    btn.disabled = false;
-                                });
-                                button.classList.add(feedback === 'like' ? 'bg-green-200' : 'bg-red-200');
-                            }
-                        } else {
-                            const errorData = await response.json();
-                            console.error('Error response:', errorData);
-                            alert('Failed to save feedback. Please try again.');
-                        }
-                    } catch (error) {
-                        console.error('Error saving feedback:', error);
-                        alert('Failed to save feedback. Please try again.');
-                    }
-                });
-            });
-        }
+      } catch (error) {
+        console.error("Error loading chat history:", error);
+      }
     }
 
-    // Function to load chat history
-    async function loadChatHistory(page = 1) {
-        try {
-            const response = await fetch(`/chat-history?page=${page}`);
-            const data = await response.json();
-            
-            chatHistory.innerHTML = '';
-            data.chats.forEach(chat => {
-                const chatItem = document.createElement('div');
-                chatItem.className = `p-3 rounded-lg hover:bg-gray-100 cursor-pointer ${chat.id === currentChatId ? 'bg-gray-100' : ''}`;
-                chatItem.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1">
-                            <div class="text-sm font-medium text-gray-900">${chat.preview}</div>
-                            <div class="text-xs text-gray-500">${new Date(chat.timestamp).toLocaleString()}</div>
-                        </div>
-                        <button class="delete-chat ml-2 p-1 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-200" data-chat-id="${chat.id}">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                        </button>
-                    </div>
-                `;
-                // Add click handler for the chat item
-                chatItem.querySelector('.flex-1').addEventListener('click', () => loadChat(chat.id));
-                // Add click handler for the delete button
-                chatItem.querySelector('.delete-chat').addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    if (confirm('Are you sure you want to delete this chat?')) {
-                        try {
-                            const response = await fetch(`/chat/${chat.id}`, {
-                                method: 'DELETE',
-                                headers: {
-                                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-                                }
-                            });
-                            if (response.ok) {
-                                if (chat.id === currentChatId) {
-                                    chatMessages.innerHTML = '';
-                                    currentChatId = null;
-                                }
-                                loadChatHistory(page);
-                            } else {
-                                alert('Failed to delete chat. Please try again.');
-                            }
-                        } catch (error) {
-                            console.error('Error deleting chat:', error);
-                            alert('Failed to delete chat. Please try again.');
-                        }
-                    }
-                });
-                chatHistory.appendChild(chatItem);
-            });
-            // Pagination controls
-            const paginationDiv = document.createElement('div');
-            paginationDiv.className = 'flex justify-between mt-4';
-            if (data.has_prev) {
-                const prevBtn = document.createElement('button');
-                prevBtn.textContent = 'Previous';
-                prevBtn.className = 'px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300';
-                prevBtn.addEventListener('click', () => loadChatHistory(data.page - 1));
-                paginationDiv.appendChild(prevBtn);
-            } else {
-                const spacer = document.createElement('div');
-                paginationDiv.appendChild(spacer);
-            }
-            const pageInfo = document.createElement('span');
-            pageInfo.textContent = `Page ${data.page} of ${data.pages}`;
-            pageInfo.className = 'text-xs text-gray-500 self-center';
-            paginationDiv.appendChild(pageInfo);
-            if (data.has_next) {
-                const nextBtn = document.createElement('button');
-                nextBtn.textContent = 'Next';
-                nextBtn.className = 'px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300';
-                nextBtn.addEventListener('click', () => loadChatHistory(data.page + 1));
-                paginationDiv.appendChild(nextBtn);
-            } else {
-                const spacer = document.createElement('div');
-                paginationDiv.appendChild(spacer);
-            }
-            chatHistory.appendChild(paginationDiv);
-        } catch (error) {
-            console.error('Error loading chat history:', error);
-        }
-    }
-
-    // Function to load a specific chat
     async function loadChat(chatId) {
-        try {
-            await fetchFeedback();
-            const response = await fetch(`/chat/${chatId}`);
-            const data = await response.json();
-            
-            // Clear current chat
-            chatMessages.innerHTML = '';
-            
-            // Add messages from the loaded chat
-            data.messages.forEach(message => {
-                addMessage(message.sender, message.text, message.image_urls, message.sender === 'AI', message.sender === 'AI' ? message.question : null);
+      try {
+        await fetchFeedback();
+        var response = await fetch("/chat/" + chatId);
+        var data = await response.json();
+
+        log.innerHTML = "";
+        lastUserMessage = "";
+        (data.messages || []).forEach(function (message) {
+          if (message.sender === "You") {
+            addUserMessage(message.text);
+          } else {
+            addReply({
+              text: message.text,
+              images: message.image_urls,
+              question: message.question,
+              rateable: true
             });
-            
-            currentChatId = chatId;
-            
-            // Update chat history to highlight current chat
-            loadChatHistory();
-        } catch (error) {
-            console.error('Error loading chat:', error);
-        }
+          }
+        });
+
+        currentChatId = chatId;
+        loadHistory();
+      } catch (error) {
+        say("Couldn't open that read. Try again.", true);
+      }
     }
 
-    // Modal logic for full-size images in chat
-    document.getElementById('chat-messages').addEventListener('click', function(e) {
-        if (e.target.tagName === 'IMG') {
-            const imageUrl = e.target.src;
-            const overlay = document.createElement('div');
-            overlay.style.position = 'fixed';
-            overlay.style.top = '0';
-            overlay.style.left = '0';
-            overlay.style.width = '100%';
-            overlay.style.height = '100%';
-            overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-            overlay.style.display = 'flex';
-            overlay.style.justifyContent = 'center';
-            overlay.style.alignItems = 'center';
-            overlay.style.zIndex = '1000';
-            overlay.style.cursor = 'pointer';
+    /* ── sending ────────────────────────────────────────────────────── */
+    form.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      var message = input.value.trim();
+      if (!message) return;
 
-            const fullImg = document.createElement('img');
-            fullImg.src = imageUrl;
-            fullImg.style.maxWidth = '90%';
-            fullImg.style.maxHeight = '90%';
-            fullImg.style.objectFit = 'contain';
+      addUserMessage(message);
+      input.value = "";
 
-            overlay.appendChild(fullImg);
-            document.body.appendChild(overlay);
+      var thinking = document.createElement("p");
+      thinking.className = "t-data t-quiet";
+      thinking.textContent = "Reading your closet…";
+      log.appendChild(thinking);
+      log.scrollTop = log.scrollHeight;
 
-            e.target.style.visibility = 'hidden';
+      try {
+        var response = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() },
+          body: JSON.stringify({
+            message: message,
+            chat_id: currentChatId,
+            wardrobe_only: wardrobeOnly()
+          })
+        });
+        var data = await response.json();
+        thinking.remove();
 
-            overlay.addEventListener('click', function() {
-                document.body.removeChild(overlay);
-                e.target.style.visibility = 'visible';
-            });
-        }
+        if (!response.ok) throw new Error(data.error || "");
+        currentChatId = data.chat_id;
+        addReply({
+          text: data.response,
+          images: data.image_urls,
+          question: message,
+          rateable: true
+        });
+        loadHistory();
+      } catch (error) {
+        thinking.remove();
+        addReply({
+          text: "That didn't go through. Ask again and I'll retry.",
+          rateable: false
+        });
+      }
     });
 
-    // Add event listener for New Chat button
-    document.getElementById('new-chat-btn').addEventListener('click', () => {
-        chatMessages.innerHTML = '';
+    if (newChatBtn) {
+      newChatBtn.addEventListener("click", function () {
+        log.innerHTML = "";
         currentChatId = null;
-        loadChatHistory();
-        showWelcomeMessages();
-    });
-}); 
+        lastUserMessage = "";
+        showWelcome();
+        loadHistory();
+        if (input) input.focus();
+      });
+    }
+
+    showWelcome();
+    fetchFeedback();
+    loadHistory(1);
+  });
+})();

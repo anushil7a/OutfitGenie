@@ -4,6 +4,8 @@ from werkzeug.utils import secure_filename
 import os
 from datetime import datetime
 from models import db, Outfit, ClothingItem, RecommendationFeedback, User
+from utils.color_utils import normalize_hex, hex_from_name, hex_for, spectrum_from_items
+from utils.llm import chat, vision_model
 import base64
 from openai import OpenAI
 import json
@@ -14,10 +16,10 @@ logger = logging.getLogger(__name__)
 
 def analyze_clothing_image(image_data):
     try:
-        # Call OpenAI Vision API
-        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
+        # Call the vision model through utils/llm.py
+        content = chat(
+            model=vision_model(),
+            max_output_tokens=1000,
             messages=[
                 {
                     "role": "user",
@@ -69,6 +71,7 @@ I want you to describe the items in a way that is easy to understand and use for
 After the natural language description, ALSO return a JSON array called items_json. For each visible clothing and accessory item, include:
 - type (e.g., "t-shirt", "jeans", "hat", "shoes", "accessory", "earbuds", etc.)
 - color (e.g., "blue", "white", etc.)
+- color_hex: the garment's single dominant colour as "#RRGGBB". Judge the fabric itself, ignoring background, shadow, lighting and skin. Never return pure #000000 or #FFFFFF -- use the shade the fabric actually photographs as (a black tee is nearer #232428, a white shirt nearer #F2F1EC). Always provide this, even when the colour name is vague.
 - brand or what its related to (if you see Barcelona logo, it's related to Barcelona, if you see Nike logo, it's related to Nike, etc.) (if visible, else null)
 - material (if visible, else null)
 - key_features (e.g., "striped", "logo", "ripped knees", words on the shirt, etc.)
@@ -79,6 +82,7 @@ items_json = [
   {
     "type": "Sleeveless sports t-shirt",
     "color": "Gray and white",
+    "color_hex": "#9A9EA3",
     "brand": "FC Barcelona",
     "material": "Polyester",
     "key_features": "Features word "HERNDON" in bold red letters, an illustration of a hornet, and the word "Hornets" beneath",
@@ -99,12 +103,10 @@ Return the natural language description first, then the JSON array as shown abov
                     ]
                 }
             ],
-            max_tokens=1000
         )
-        
-        # Get the response content
-        content = response.choices[0].message.content.strip()
-        
+
+        content = (content or "").strip()
+
         # Split the response into bullet points and items_json
         bullet_points = content
         items = None
@@ -154,7 +156,6 @@ def get_item_bullet_points(bullet_points, item_type):
 
 def generate_short_description(item, bullet_points):
     try:
-        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
         prompt = f"""Given these details about a clothing item:
         Type: {item['type']}
         Color: {item['color']}
@@ -177,16 +178,15 @@ def generate_short_description(item, bullet_points):
         
         """
         
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
+        content = chat(
             messages=[
                 {"role": "system", "content": "You are a precise fashion expert who writes factual, concise descriptions focusing on unique and important details."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=100
+            max_output_tokens=100,
         )
-        
-        return response.choices[0].message.content.strip()
+
+        return (content or "").strip()
     except Exception as e:
         logger.error(f"Error generating description: {str(e)}")
         return None
@@ -239,11 +239,18 @@ def upload_clothing():
                                 short_description = generate_short_description(item, item_bullet_points)
                                 print(f"Short description: {short_description}")
                                 
+                                # Trust the model's hex when it is well formed,
+                                # otherwise derive one from the colour name so
+                                # the item still carries a usable swatch.
+                                color_hex = (normalize_hex(item.get('color_hex'))
+                                             or hex_from_name(item.get('color')))
+
                                 clothing_item = ClothingItem(
                                     user_id=current_user.id,
                                     outfit_id=outfit.id,
                                     type=item.get('type'),
                                     color=item.get('color'),
+                                    color_hex=color_hex,
                                     brand=item.get('brand'),
                                     material=item.get('material'),
                                     key_features=item.get('key_features'),
@@ -291,27 +298,51 @@ def my_outfits():
         print("Accessing /my-outfits route")  # Debug print
         # Get page number from query parameters, default to 1
         page = request.args.get('page', 1, type=int)
-        per_page = 6  # Number of items per page
-        
-        # Get outfits for the current user with pagination
-        outfits_pagination = Outfit.query.filter_by(user_id=current_user.id)\
-            .order_by(Outfit.created_at.desc())\
+        # 12 divides by 2, 3, 4 and 6, so the grid ends on a complete row at
+        # every breakpoint instead of leaving a ragged one.
+        per_page = 12
+
+        query = Outfit.query.filter_by(user_id=current_user.id)
+
+        # Filtering by colour happens here rather than in the browser. Doing
+        # it client-side only ever searched the current page, so a colour
+        # whose looks sat on page 2 reported nothing at all.
+        colour = (request.args.get('colour') or '').strip().lstrip('#')
+        colour_hex = normalize_hex(colour) if colour else None
+        if colour_hex:
+            owned = ClothingItem.query.filter_by(user_id=current_user.id).all()
+            matching_ids = {item.outfit_id for item in owned
+                            if hex_for(item) == colour_hex}
+            query = query.filter(Outfit.id.in_(matching_ids or [-1]))
+
+        outfits_pagination = query.order_by(Outfit.created_at.desc())\
             .paginate(page=page, per_page=per_page, error_out=False)
         
-        # Get clothing items for each outfit
-        for outfit in outfits_pagination.items:
-            clothing_items = ClothingItem.query.filter_by(outfit_id=outfit.id).all()
-            print(f"Clothing items for outfit {outfit.id}: {clothing_items}")
-            if clothing_items:
-                outfit.items = [item.to_dict() for item in clothing_items]
-        
+        # Get clothing items for each outfit.
+        #
+        # `outfit.items` is a JSON *column*, so overwriting it for display marks
+        # the instance dirty. Without no_autoflush the next query in this loop
+        # would flush that back to the database on every page view. The block
+        # keeps this read-only, which is all this route was ever meant to be.
+        with db.session.no_autoflush:
+            for outfit in outfits_pagination.items:
+                clothing_items = ClothingItem.query.filter_by(outfit_id=outfit.id).all()
+                if clothing_items:
+                    outfit.items = [item.to_dict() for item in clothing_items]
+                # This outfit's own colourway. A non-column attribute, so it
+                # stays a view concern and can never reach the database.
+                outfit.band = spectrum_from_items(outfit.items, limit=6)
+
         # Check if the uploads directory exists
         uploads_dir = os.path.join(current_app.root_path, 'static', 'uploads', str(current_user.id))
         if not os.path.exists(uploads_dir):
             os.makedirs(uploads_dir)
             print(f"Created uploads directory: {uploads_dir}")  # Debug print
         
-        return render_template('my_outfits.html', outfits=outfits_pagination.items, pagination=outfits_pagination)
+        return render_template('my_outfits.html',
+                               outfits=outfits_pagination.items,
+                               pagination=outfits_pagination,
+                               active_colour=colour_hex)
     except Exception as e:
         import traceback
         print("Error in my_outfits route:", str(e))

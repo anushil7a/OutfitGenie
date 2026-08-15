@@ -1,251 +1,281 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>AI Fashion Assistant - Data View</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body class="bg-gray-100">
-    <nav class="bg-white shadow-lg">
-        <div class="max-w-6xl mx-auto px-4">
-            <div class="flex justify-between items-center py-4">
-                <div class="text-xl font-bold text-gray-800">AI Outfit Finder</div>
-                <div class="space-x-4">
-                    {% if current_user.is_authenticated %}
-                        <a href="{{ url_for('index') }}" class="text-gray-600 hover:text-gray-800">Home</a>
-                        <a href="{{ url_for('outfits.my_outfits') }}" class="text-gray-600 hover:text-gray-800">My Outfits</a>
-                        <a href="{{ url_for('chat.chat') }}" class="text-gray-600 hover:text-gray-800">Chat</a>
-                        <a href="{{ url_for('ai_data.ai_data') }}" class="text-indigo-600 font-semibold">AI Data</a>
-                        <a href="{{ url_for('auth.logout') }}" class="text-gray-600 hover:text-gray-800">Logout</a>
-                    {% else %}
-                        <a href="{{ url_for('auth.login') }}" class="text-gray-600 hover:text-gray-800">Login</a>
-                        <a href="{{ url_for('auth.register') }}" class="text-gray-600 hover:text-gray-800">Register</a>
+{% extends "base.html" %}
+
+{% block title %}AI data — OutfitGenie{% endblock %}
+
+{% block content %}
+<div class="shell">
+
+    <section class="section">
+        <p class="t-data eyebrow">AI data</p>
+        <h1 class="t-display" style="font-size:var(--display); margin-bottom:.85rem">
+            Everything the<br>stylist is given
+        </h1>
+        <p class="t-voice" style="margin-bottom:1.5rem">
+            The exact context sent with every recommendation. Edit anything that's wrong and
+            the next answer changes.
+        </p>
+
+        {# ── who you are ─────────────────────────────────────────────── #}
+        <div class="data-grid data-grid-2">
+            <div class="panel sheen">
+                <div class="panel-head"><span class="t-data">You</span></div>
+                <div class="panel-body">
+                    <dl class="data-grid">
+                        <div class="data-row">
+                            <dt>Height</dt>
+                            <dd>{{ current_user.height ~ ' in' if current_user.height else 'Not set' }}</dd>
+                        </div>
+                        <div class="data-row">
+                            <dt>Weight</dt>
+                            <dd>{{ current_user.weight ~ ' lbs' if current_user.weight else 'Not set' }}</dd>
+                        </div>
+                        <div class="data-row">
+                            <dt>Gender</dt>
+                            <dd>{{ current_user.gender or 'Not set' }}</dd>
+                        </div>
+                        <div class="data-row">
+                            <dt>Skin tone</dt>
+                            <dd>
+                                {% if preferences and preferences.skin_tone_color %}
+                                    <span class="swatch-inline">
+                                        <i style="--c: {{ preferences.skin_tone_color }};"></i>
+                                        {{ preferences.skin_tone_color }}
+                                    </span>
+                                    {% if preferences.skin_tone_text %}· {{ preferences.skin_tone_text }}{% endif %}
+                                {% else %}Not set{% endif %}
+                            </dd>
+                        </div>
+                        <div class="data-row">
+                            <dt>Hair</dt>
+                            <dd>
+                                {% if preferences and preferences.hair_color == 'other' %}
+                                    {{ preferences.hair_color_text or 'Other' }}
+                                {% else %}
+                                    {{ preferences.hair_color if preferences and preferences.hair_color else 'Not set' }}
+                                {% endif %}
+                            </dd>
+                        </div>
+                        <div class="data-row">
+                            <dt>Styles</dt>
+                            <dd>
+                                {% if preferences and preferences.styles %}
+                                    {% for style in preferences.styles %}<span class="tag">{{ style }}</span> {% endfor %}
+                                    {% if preferences.custom_style %}<span class="tag">{{ preferences.custom_style }}</span>{% endif %}
+                                {% else %}None chosen{% endif %}
+                            </dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="panel sheen">
+                <div class="panel-head"><span class="t-data">Conditions</span></div>
+                <div class="panel-body">
+                    <dl class="data-grid">
+                        <div class="data-row">
+                            <dt>City</dt>
+                            <dd>{{ location or 'Not set' }}</dd>
+                        </div>
+                        <div class="data-row">
+                            <dt>Conditions</dt>
+                            <dd>{{ weather.condition if weather else 'Not available' }}</dd>
+                        </div>
+                        <div class="data-row">
+                            <dt>Temperature</dt>
+                            <dd>{{ weather.temperature ~ '°F' if weather else 'Not available' }}</dd>
+                        </div>
+                        <div class="data-row">
+                            <dt>Wardrobe</dt>
+                            <dd>{{ wardrobe_count }} piece{{ '' if wardrobe_count == 1 else 's' }}
+                                across {{ spectrum | length }} colour{{ '' if (spectrum | length) == 1 else 's' }}</dd>
+                        </div>
+                    </dl>
+
+                    {% if spectrum %}
+                        <div style="margin-top:1rem">
+                            <p class="t-data t-quiet" style="margin-bottom:.4rem">Every colour you own, to scale</p>
+                            <div class="spectrum band-tall" data-develop>
+                                {% for seg in spectrum %}
+                                    <div class="seg" style="--c: {{ seg.hex }}; --n: {{ seg.count }};"
+                                         title="{{ seg.name }} — {{ seg.count }} ({{ seg.pct }}%)"></div>
+                                {% endfor %}
+                            </div>
+                        </div>
                     {% endif %}
                 </div>
             </div>
         </div>
-    </nav>
+    </section>
 
-    <main class="max-w-6xl mx-auto px-4 py-8">
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h1 class="text-2xl font-bold mb-6">AI Input Data</h1>
-            
-            <!-- User Information -->
-            <div class="mb-8">
-                <h2 class="text-xl font-semibold mb-4">User Information</h2>
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="bg-gray-50 p-4 rounded-lg">
-                        <h3 class="font-medium text-gray-700 mb-2">Physical Attributes</h3>
-                        <p>Height: {{ current_user.height }} inches</p>
-                        <p>Weight: {{ current_user.weight }} lbs</p>
-                        <p>Gender: {{ current_user.gender }}</p>
-                    </div>
-                    <div class="bg-gray-50 p-4 rounded-lg">
-                        <h3 class="font-medium text-gray-700 mb-2">Location</h3>
-                        <p>Current Location: {{ location or 'Not set' }}</p>
-                        <p>Weather: {{ weather.condition if weather else 'Not available' }}</p>
-                        <p>Temperature: {{ weather.temperature if weather else 'N/A' }}°F</p>
-                    </div>
+    {# ── notes ───────────────────────────────────────────────────────── #}
+    <section class="section">
+        <p class="t-data eyebrow">Your notes</p>
+        <p class="t-voice" style="margin-bottom:1rem">
+            Free-text context the stylist reads every time — how you run hot or cold, what you've
+            worn recently, what you'd rather it didn't suggest.
+        </p>
+
+        <div class="panel">
+            <div class="panel-head">
+                <span class="t-data">Current notes</span>
+                <button type="button" class="btn btn-ghost" id="toggle-edit">Edit</button>
+            </div>
+            <div class="panel-body stack-tight">
+                <label class="sr-only" for="existing-notes">Your notes</label>
+                <textarea id="existing-notes" class="textarea" rows="6" readonly>{{ current_user.ai_notes or '' }}</textarea>
+                <div class="btn-row" style="justify-content:flex-end">
+                    <button type="button" class="btn btn-primary" id="save-existing-notes" hidden>Save changes</button>
                 </div>
             </div>
+        </div>
 
-            <!-- User Preferences -->
-            <div class="mb-8">
-                <h2 class="text-xl font-semibold mb-4">Style Preferences</h2>
-                <div class="bg-gray-50 p-4 rounded-lg">
-                    <ul class="list-disc pl-6">
-                        <li><strong>Styles:</strong> {{ preferences.styles | join(', ') if preferences and preferences.styles else 'None' }}</li>
-                        <li><strong>Custom Style:</strong> {{ preferences.custom_style if preferences and preferences.custom_style else 'None' }}</li>
-                        <li><strong>Skin Tone Color:</strong> <span style="background: {{ preferences.skin_tone_color if preferences and preferences.skin_tone_color else '#fff' }}; padding: 0 8px; border-radius: 4px;">{{ preferences.skin_tone_color if preferences and preferences.skin_tone_color else 'None' }}</span></li>
-                        <li><strong>Skin Tone Text:</strong> {{ preferences.skin_tone_text if preferences and preferences.skin_tone_text else 'None' }}</li>
-                        <li><strong>Hair Color:</strong> {{ preferences.hair_color if preferences and preferences.hair_color else 'None' }}</li>
-                        {% if preferences and preferences.hair_color == 'other' %}
-                        <li><strong>Custom Hair Color:</strong> {{ preferences.hair_color_text if preferences and preferences.hair_color_text else 'None' }}</li>
-                        {% endif %}
-                    </ul>
+        <form id="notes-form" class="panel" style="margin-top:.5rem">
+            <div class="panel-head"><span class="t-data">Add a note</span></div>
+            <div class="panel-body stack-tight">
+                <label class="sr-only" for="new-notes">New note</label>
+                <textarea id="new-notes" class="textarea" rows="3"
+                          placeholder="I run warm — go lighter than the temperature suggests."></textarea>
+                <div class="btn-row" style="justify-content:flex-end">
+                    <button type="submit" class="btn btn-primary">Add note</button>
                 </div>
             </div>
+        </form>
+    </section>
 
-            <!-- Wardrobe Items -->
-            <div class="mb-8">
-                <h2 class="text-xl font-semibold mb-4">Wardrobe Items</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {% for outfit in outfits %}
-                    <div class="bg-gray-50 p-4 rounded-lg">
-                        <div class="flex items-start space-x-4">
-                            <img src="{{ outfit.image_url }}" alt="Clothing item" class="w-24 h-24 object-cover rounded-lg">
-                            <div class="flex-1">
-                                <div class="flex justify-between items-start mb-2">
-                                    <div class="prose prose-sm max-w-none" id="outfit-description-{{ outfit.id }}">
-                                        {{ outfit.analysis | safe }}
-                                    </div>
-                                    <button class="edit-description-btn px-2 py-1 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500" data-outfit-id="{{ outfit.id }}">
-                                        Edit
-                                    </button>
-                                </div>
-                                <div class="edit-description-form hidden" id="edit-form-{{ outfit.id }}">
-                                    <textarea class="w-full p-2 border rounded-lg mb-2" rows="4">{{ outfit.analysis | safe }}</textarea>
-                                    <div class="flex justify-end space-x-2">
-                                        <button class="cancel-edit-btn px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500" data-outfit-id="{{ outfit.id }}">
-                                            Cancel
-                                        </button>
-                                        <button class="save-description-btn px-3 py-1 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" data-outfit-id="{{ outfit.id }}">
-                                            Save
-                                        </button>
-                                    </div>
-                                </div>
+    {# ── what it read from each photo ────────────────────────────────── #}
+    <section class="section">
+        <p class="t-data eyebrow">Reads</p>
+        <h2 class="t-display" style="font-size:var(--xl); margin-bottom:1rem">Raw analysis per photo</h2>
+
+        {% if outfits %}
+            <div class="data-grid data-grid-2">
+                {% for outfit in outfits %}
+                    <div class="record sheen">
+                        <div class="record-media">
+                            <img src="{{ outfit.image_url }}" alt="Look {{ outfit.id }}" loading="lazy"
+                                 data-full-image="{{ outfit.image_url }}">
+                            <div class="record-analysis" id="outfit-description-{{ outfit.id }}">
+                                {{ outfit.analysis | safe }}
                             </div>
                         </div>
-                    </div>
-                    {% endfor %}
-                </div>
 
-                <!-- Outfits Pagination Controls -->
-                {% if outfits_pagination.pages > 1 %}
-                <div class="mt-6 flex justify-center space-x-2">
+                        <div class="edit-description-form stack-tight" id="edit-form-{{ outfit.id }}" hidden>
+                            <label class="sr-only" for="edit-text-{{ outfit.id }}">Edit analysis</label>
+                            <textarea class="textarea" id="edit-text-{{ outfit.id }}" rows="6">{{ outfit.analysis }}</textarea>
+                            <div class="btn-row" style="justify-content:flex-end">
+                                <button type="button" class="btn cancel-edit-btn" data-outfit-id="{{ outfit.id }}">Cancel</button>
+                                <button type="button" class="btn btn-primary save-description-btn" data-outfit-id="{{ outfit.id }}">Save</button>
+                            </div>
+                        </div>
+
+                        <div class="btn-row" style="justify-content:flex-end">
+                            <button type="button" class="btn btn-ghost edit-description-btn"
+                                    data-outfit-id="{{ outfit.id }}">Edit analysis</button>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            {% if outfits_pagination.pages > 1 %}
+                <nav class="pager" aria-label="Reads pages">
                     {% if outfits_pagination.has_prev %}
-                    <a href="{{ url_for('ai_data.ai_data', outfits_page=outfits_pagination.prev_num, feedback_page=feedback_pagination.page) }}" 
-                       class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
-                        Previous
-                    </a>
+                        <a class="btn" href="{{ url_for('ai_data.ai_data', outfits_page=outfits_pagination.prev_num, feedback_page=feedback_pagination.page) }}">Previous</a>
                     {% endif %}
-                    
                     {% for page_num in outfits_pagination.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
                         {% if page_num %}
                             {% if page_num == outfits_pagination.page %}
-                            <span class="px-4 py-2 bg-indigo-600 text-white rounded-md">
-                                {{ page_num }}
-                            </span>
+                                <span class="btn btn-primary" aria-current="page">{{ page_num }}</span>
                             {% else %}
-                            <a href="{{ url_for('ai_data.ai_data', outfits_page=page_num, feedback_page=feedback_pagination.page) }}" 
-                               class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
-                                {{ page_num }}
-                            </a>
+                                <a class="btn" href="{{ url_for('ai_data.ai_data', outfits_page=page_num, feedback_page=feedback_pagination.page) }}">{{ page_num }}</a>
                             {% endif %}
                         {% else %}
-                            <span class="px-4 py-2 text-gray-500">...</span>
+                            <span class="pager-gap">···</span>
                         {% endif %}
                     {% endfor %}
-                    
                     {% if outfits_pagination.has_next %}
-                    <a href="{{ url_for('ai_data.ai_data', outfits_page=outfits_pagination.next_num, feedback_page=feedback_pagination.page) }}" 
-                       class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
-                        Next
-                    </a>
+                        <a class="btn" href="{{ url_for('ai_data.ai_data', outfits_page=outfits_pagination.next_num, feedback_page=feedback_pagination.page) }}">Next</a>
                     {% endif %}
-                </div>
-                {% endif %}
+                </nav>
+            {% endif %}
+        {% else %}
+            <div class="empty">
+                <p class="empty-title">Nothing read yet</p>
+                <a class="btn btn-primary" href="{{ url_for('index') }}">Upload a photo</a>
             </div>
+        {% endif %}
+    </section>
 
-            <!-- AI Notes -->
-            <div class="mb-8">
-                <h2 class="text-xl font-semibold mb-4">AI Notes</h2>
-                <div class="bg-gray-50 p-4 rounded-lg">
-                    <!-- Display existing notes -->
-                    <div class="mb-6">
-                        <div class="flex justify-between items-center mb-2">
-                            <h3 class="font-medium text-gray-700">Current Notes</h3>
-                            <button id="toggle-edit" class="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
-                                Edit Notes
-                            </button>
-                        </div>
-                        <textarea id="existing-notes" rows="6" class="w-full p-2 border rounded-lg mb-2 bg-gray-50" readonly>{{ current_user.ai_notes or '' }}</textarea>
-                        <button id="save-existing-notes" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 hidden">
-                            Save Changes
-                        </button>
-                    </div>
+    {# ── feedback ────────────────────────────────────────────────────── #}
+    <section class="section">
+        <p class="t-data eyebrow">Feedback</p>
+        <h2 class="t-display" style="font-size:var(--xl); margin-bottom:1rem">What you've rated</h2>
 
-                    <!-- Add new notes -->
-                    <div>
-                        <h3 class="font-medium text-gray-700 mb-2">Add New Note</h3>
-                        <form id="notes-form" class="mb-4">
-                            <textarea id="new-notes" rows="4" class="w-full p-2 border rounded-lg" placeholder="Add a new note..."></textarea>
-                            <button type="submit" class="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                                Add Note
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Recommendation Feedback -->
-            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 class="text-xl font-semibold mb-4">Recommendation Feedback</h2>
-                <div class="space-y-4">
-                    {% for feedback in feedback %}
-                    <div class="border rounded-lg p-4 {% if feedback.feedback == 'like' %}bg-green-50 border-green-200{% else %}bg-red-50 border-red-200{% endif %}">
-                        <div class="flex justify-between items-start">
-                            <div class="flex-1">
-                                <div class="mb-2">
-                                    <p class="text-xs text-gray-500 mb-1">Question:</p>
-                                    <p class="text-sm text-gray-700 italic">{{ feedback.question }}</p>
+        {% if feedback %}
+            <div class="stack">
+                {% for entry in feedback %}
+                    <div class="panel sheen">
+                        <div class="panel-body">
+                            <div style="display:flex; gap:1rem; align-items:flex-start">
+                                <div class="verdict {{ 'is-like' if entry.feedback == 'like' else 'is-dislike' }}"
+                                     style="flex:1; min-width:0">
+                                    <p class="t-data t-quiet" style="margin:0 0 .2rem">You asked</p>
+                                    <p class="t-voice" style="margin:0 0 .6rem">{{ entry.question }}</p>
+                                    <p class="t-data t-quiet" style="margin:0 0 .2rem">It said</p>
+                                    <p class="t-voice" style="margin:0">{{ entry.recommendation }}</p>
+                                    <p class="t-data t-quiet" style="margin:.6rem 0 0">
+                                        {{ entry.created_at.strftime('%d %b %Y · %H:%M') }} ·
+                                        {{ 'Good call' if entry.feedback == 'like' else 'Not for me' }}
+                                    </p>
                                 </div>
-                                <div class="mb-2">
-                                    <p class="text-xs text-gray-500 mb-1">Recommendation:</p>
-                                    <p class="text-sm text-gray-700">{{ feedback.recommendation }}</p>
-                                </div>
-                                <div class="flex items-center text-xs text-gray-500">
-                                    <span class="mr-2">{{ feedback.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
-                                    <span class="px-2 py-1 rounded-full {% if feedback.feedback == 'like' %}bg-green-200 text-green-800{% else %}bg-red-200 text-red-800{% endif %}">
-                                        {{ feedback.feedback|title }}
-                                    </span>
-                                </div>
+                                <button type="button" class="icon-btn is-danger delete-feedback"
+                                        data-feedback-id="{{ entry.id }}"
+                                        aria-label="Delete this feedback"
+                                        onclick="deleteFeedback({{ entry.id }})">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                        <path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                </button>
                             </div>
-                            <button class="delete-feedback ml-2 p-1 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-200" 
-                                    data-feedback-id="{{ feedback.id }}"
-                                    onclick="deleteFeedback({{ feedback.id }})">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                            </button>
                         </div>
                     </div>
-                    {% endfor %}
-                </div>
+                {% endfor %}
+            </div>
 
-                <!-- Feedback Pagination Controls -->
-                {% if feedback_pagination.pages > 1 %}
-                <div class="mt-6 flex justify-center space-x-2">
+            {% if feedback_pagination.pages > 1 %}
+                <nav class="pager" aria-label="Feedback pages">
                     {% if feedback_pagination.has_prev %}
-                    <a href="{{ url_for('ai_data.ai_data', outfits_page=outfits_pagination.page, feedback_page=feedback_pagination.prev_num) }}" 
-                       class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
-                        Previous
-                    </a>
+                        <a class="btn" href="{{ url_for('ai_data.ai_data', outfits_page=outfits_pagination.page, feedback_page=feedback_pagination.prev_num) }}">Previous</a>
                     {% endif %}
-                    
                     {% for page_num in feedback_pagination.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
                         {% if page_num %}
                             {% if page_num == feedback_pagination.page %}
-                            <span class="px-4 py-2 bg-indigo-600 text-white rounded-md">
-                                {{ page_num }}
-                            </span>
+                                <span class="btn btn-primary" aria-current="page">{{ page_num }}</span>
                             {% else %}
-                            <a href="{{ url_for('ai_data.ai_data', outfits_page=outfits_pagination.page, feedback_page=page_num) }}" 
-                               class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
-                                {{ page_num }}
-                            </a>
+                                <a class="btn" href="{{ url_for('ai_data.ai_data', outfits_page=outfits_pagination.page, feedback_page=page_num) }}">{{ page_num }}</a>
                             {% endif %}
                         {% else %}
-                            <span class="px-4 py-2 text-gray-500">...</span>
+                            <span class="pager-gap">···</span>
                         {% endif %}
                     {% endfor %}
-                    
                     {% if feedback_pagination.has_next %}
-                    <a href="{{ url_for('ai_data.ai_data', outfits_page=outfits_pagination.page, feedback_page=feedback_pagination.next_num) }}" 
-                       class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
-                        Next
-                    </a>
+                        <a class="btn" href="{{ url_for('ai_data.ai_data', outfits_page=outfits_pagination.page, feedback_page=feedback_pagination.next_num) }}">Next</a>
                     {% endif %}
-                </div>
-                {% endif %}
+                </nav>
+            {% endif %}
+        {% else %}
+            <div class="empty">
+                <p class="empty-title">No ratings yet</p>
+                <p class="t-voice t-quiet" style="margin:0">
+                    Rate the stylist's answers and it learns what you actually wear.
+                </p>
+                <a class="btn btn-primary" href="{{ url_for('chat.chat') }}">Ask the stylist</a>
             </div>
-        </div>
-    </main>
+        {% endif %}
+    </section>
 
-    <!-- JS moved to static/js/ai_data.js -->
-    <script src="{{ url_for('static', filename='js/ai_data.js') }}"></script>
-</body>
-</html> 
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/ai_data.js') }}"></script>
+{% endblock %}

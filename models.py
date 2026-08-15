@@ -75,6 +75,7 @@ class ClothingItem(db.Model):
     outfit_id = db.Column(db.Integer, db.ForeignKey('outfit.id'), nullable=False)
     type = db.Column(db.String(50))
     color = db.Column(db.String(50))
+    color_hex = db.Column(db.String(7))  # '#RRGGBB' from the vision model
     brand = db.Column(db.String(100))
     material = db.Column(db.String(100))
     key_features = db.Column(db.Text)
@@ -88,6 +89,7 @@ class ClothingItem(db.Model):
             'id': self.id,
             'type': self.type,
             'color': self.color,
+            'color_hex': self.color_hex,
             'brand': self.brand,
             'material': self.material,
             'key_features': self.key_features,

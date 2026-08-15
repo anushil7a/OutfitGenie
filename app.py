@@ -15,9 +15,12 @@ from openai import OpenAI
 import logging
 from auth import auth
 from outfits import outfits
-from models import db, User, Outfit, Chat, RecommendationFeedback
+from models import db, User, Outfit, Chat, RecommendationFeedback, ClothingItem
 from routes.chat import chat_bp
 from routes.ai_data import ai_data_bp
+from routes.insights import insights_bp
+from utils.color_utils import build_spectrum, hex_for
+from utils.wardrobe_insights import dedupe_pieces
 from utils.weather_utils import get_weather_data
 from weather_recommendations import weather_recommendations
 
@@ -53,11 +56,14 @@ app.register_blueprint(auth)
 app.register_blueprint(outfits)
 app.register_blueprint(chat_bp)
 app.register_blueprint(ai_data_bp)
+app.register_blueprint(insights_bp)
 app.register_blueprint(weather_recommendations)
 
-# Configure OpenAI
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-print("OpenAI API Key configured:", "Yes" if os.getenv('OPENAI_API_KEY') else "No")
+# The model client lives in utils/llm.py and is built lazily on first use.
+from utils.llm import base_url as _llm_base_url, chat_model as _llm_model
+logger.info("Model: %s via %s | API key: %s",
+            _llm_model(), _llm_base_url() or "api.openai.com",
+            "set" if os.getenv('OPENAI_API_KEY') else "MISSING")
 
 # Weather API configuration
 WEATHER_API_KEY = os.getenv('WEATHER_API_KEY')
@@ -72,9 +78,46 @@ class CustomJSONEncoder(json.JSONEncoder):
 
 app.json_encoder = CustomJSONEncoder
 
+# Templates resolve a garment's swatch through this, so a missing or malformed
+# colour always renders as a neutral rather than breaking the page.
+app.jinja_env.globals['item_hex'] = hex_for
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+
+@app.context_processor
+def inject_spectrum():
+    """Make the wardrobe spectrum available to every template.
+
+    The band sits under the nav on every page, so it is injected here rather
+    than threaded through each route. One grouped query, not one row per
+    garment. Wrapped in no_autoflush because views that decorate ORM objects
+    for display (my_outfits does) would otherwise have those edits flushed by
+    this query during rendering.
+    """
+    empty = {'spectrum': [], 'wardrobe_count': 0}
+    if not current_user.is_authenticated:
+        return empty
+    try:
+        with db.session.no_autoflush:
+            items = [i.to_dict() for i in
+                     ClothingItem.query.filter_by(user_id=current_user.id).all()]
+        # Deduped: the same shirt photographed in four outfits is four rows,
+        # and counting it four times overstates that colour in the band.
+        unique = dedupe_pieces(items)
+        rows = [(i.get('color'), i.get('color_hex'), 1) for i in unique]
+        return {
+            'spectrum': build_spectrum(rows),
+            'wardrobe_count': len(unique),
+        }
+    except Exception as e:
+        # A missing color_hex column (migration not yet run) must not take
+        # down every page. Render the neutral empty state instead.
+        logger.warning(f"Spectrum unavailable: {e}")
+        db.session.rollback()
+        return empty
 
 # Routes
 @app.route('/')

@@ -1,72 +1,51 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>AI Fashion Assistant - Chat</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body class="bg-gray-100">
-    <nav class="bg-white shadow-lg">
-        <div class="max-w-6xl mx-auto px-4">
-            <div class="flex justify-between items-center py-4">
-                <div class="text-xl font-bold text-gray-800">AI Outfit Finder</div>
-                <div class="space-x-4">
-                    {% if current_user.is_authenticated %}
-                        <a href="{{ url_for('index') }}" class="text-gray-600 hover:text-gray-800">Home</a>
-                        <a href="{{ url_for('outfits.my_outfits') }}" class="text-gray-600 hover:text-gray-800">My Outfits</a>
-                        <a href="{{ url_for('chat.chat') }}" class="text-indigo-600 font-semibold">Chat</a>
-                        <a href="{{ url_for('ai_data.ai_data') }}" class="text-gray-600 hover:text-gray-800">AI Data</a>
-                        <a href="{{ url_for('auth.logout') }}" class="text-gray-600 hover:text-gray-800">Logout</a>
-                    {% else %}
-                        <a href="{{ url_for('auth.login') }}" class="text-gray-600 hover:text-gray-800">Login</a>
-                        <a href="{{ url_for('auth.register') }}" class="text-gray-600 hover:text-gray-800">Register</a>
-                    {% endif %}
-                </div>
-            </div>
+{% extends "base.html" %}
+
+{% block title %}Stylist — OutfitGenie{% endblock %}
+
+{% block content %}
+<div class="shell">
+    <section class="section">
+        <p class="t-data eyebrow">Stylist</p>
+
+        <div class="band-note" style="align-items:flex-end; margin-bottom:1.25rem">
+            <h1 class="t-display" style="font-size:var(--display)">Ask your closet</h1>
+            <span class="t-data t-quiet">{{ wardrobe_count }} pieces</span>
         </div>
-    </nav>
 
-    <main class="max-w-6xl mx-auto px-4 py-8">
-        <div class="flex gap-6">
-            <!-- Chat History Sidebar -->
-            <div class="w-1/4 bg-white rounded-lg shadow-md p-4">
-                <h2 class="text-xl font-bold mb-4">Chat History</h2>
-                <button id="new-chat-btn" class="w-full mb-3 px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 transition">+ New Chat</button>
-                <div id="chat-history" class="space-y-2">
-                    <!-- Chat history items will be added here -->
-                </div>
-            </div>
+        <div class="chat-shell">
 
-            <!-- Main Chat Area -->
-            <div class="flex-1 bg-white rounded-lg shadow-md p-6">
-                <div id="chat-messages" class="space-y-4 mb-4 h-[500px] overflow-y-auto">
-                    <!-- Messages will be added here -->
-                </div>
-                <!-- Enhanced toggle switch -->
-                <div class="flex items-center justify-end mb-4 bg-gray-50 p-3 rounded-lg">
-                    <div class="flex items-center space-x-3">
-                        <span id="mode-label" class="text-sm font-medium text-gray-700">Recommend from all clothes</span>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" id="recommendation-mode" class="sr-only peer">
-                            <div class="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-indigo-600"></div>
-                        </label>
-                    </div>
-                </div>
-                <form id="chat-form" class="flex gap-2">
-                    <input type="text" id="message-input" placeholder="Ask about your outfits..." 
-                           class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    <button type="submit" 
-                            class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                        Send
+            {# ── past reads ──────────────────────────────────────────── #}
+            <aside class="chat-rail">
+                <button type="button" class="btn btn-primary" id="new-chat-btn">Start a new read</button>
+                <div id="chat-history" class="stack-tight"></div>
+            </aside>
+
+            {# ── the conversation ────────────────────────────────────── #}
+            <div class="panel sheen">
+                <div class="panel-head">
+                    <span class="t-data">Conversation</span>
+                    <button type="button" class="switch" id="recommendation-mode"
+                            role="switch" aria-checked="false">
+                        <span class="switch-track" aria-hidden="true"></span>
+                        <span id="mode-label">Anything</span>
                     </button>
+                </div>
+
+                <div id="chat-messages" class="chat-log"></div>
+
+                <form id="chat-form" class="chat-compose">
+                    <label class="sr-only" for="message-input">Ask the stylist</label>
+                    <input type="text" id="message-input" class="input"
+                           placeholder="What should I wear to a 52° overcast day?"
+                           autocomplete="off">
+                    <button type="submit" class="btn btn-primary">Ask</button>
                 </form>
             </div>
         </div>
-    </main>
+    </section>
+</div>
+{% endblock %}
 
-    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
-</body>
-</html> 
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+{% endblock %}

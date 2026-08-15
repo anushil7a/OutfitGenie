@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Pack — OutfitGenie{% endblock %}
+
+{% block content %}
+<div class="shell">
+    <section class="section">
+        <p class="t-data eyebrow">Pack</p>
+        <h1 class="t-display" style="font-size:var(--display); margin-bottom:.85rem">
+            Fewest pieces,<br>most outfits
+        </h1>
+        <p class="t-voice" style="margin-bottom:1.5rem">
+            The fewest clothes that cover every day.
+        </p>
+
+        <form method="get" class="panel sheen" style="max-width:34rem">
+            <div class="panel-body">
+                <div class="field-row">
+                    <div class="field" style="flex:1 1 14rem">
+                        <label class="field-label" for="city">City</label>
+                        <input class="input" type="text" id="city" name="city"
+                               value="{{ city }}" placeholder="Reykjavik, Lisbon, Dallas…" required>
+                    </div>
+                    <div class="field" style="flex:0 0 7rem">
+                        <label class="field-label" for="nights">Days</label>
+                        <input class="input" type="number" id="nights" name="nights"
+                               value="{{ nights }}" min="1" max="{{ max_days }}">
+                    </div>
+                </div>
+                <div class="btn-row" style="justify-content:space-between; margin-top:.9rem">
+                    <span class="t-data t-quiet">Up to {{ max_days }} days</span>
+                    <button type="submit" class="btn btn-primary">Pack the bag</button>
+                </div>
+            </div>
+        </form>
+    </section>
+
+    {% if plan %}
+        {% if plan.error %}
+            <section class="section">
+                <div class="empty">
+                    <p class="empty-title">{{ plan.error }}</p>
+                </div>
+            </section>
+        {% else %}
+
+        {# ── the forecast it planned against ─────────────────────────── #}
+        <section class="section">
+            <p class="t-data eyebrow">{{ plan.city }}</p>
+            <div class="forecast">
+                {% for day in plan.days %}
+                    <div class="fc-day sheen">
+                        <span class="t-data t-quiet">{{ day.label }}</span>
+                        <span class="fc-temp">{{ day.high }}°<span class="fc-low">/{{ day.low }}°</span></span>
+                        <span class="t-data t-quiet">{{ day.condition }}</span>
+                        {% if day.notes %}
+                            <span class="tag">{{ day.notes | join(' · ') }}</span>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+            {% if plan.truncated %}
+                <p class="t-data t-quiet" style="margin-top:.75rem">
+                    {{ plan.days | length }} days — the forecast stops there.
+                </p>
+            {% endif %}
+        </section>
+
+        {# ── the bag ────────────────────────────────────────────────── #}
+        <section class="section">
+            <div class="band-note" style="align-items:flex-end; margin-bottom:1rem">
+                <h2 class="t-display" style="font-size:var(--xl)">The bag</h2>
+                <span class="t-data t-quiet">
+                    {{ plan.capsule.pieces | length }} pieces ·
+                    {{ plan.capsule.outfits }} outfits ·
+                    {{ plan.ratio }} per piece
+                </span>
+            </div>
+
+            {% if plan.capsule.missing %}
+                <div class="finding is-high" style="margin-bottom:1rem">
+                    <div class="finding-head">
+                        <h3 class="finding-title">Not covered</h3>
+                    </div>
+                    <p class="t-voice" style="margin:0">
+                        {% for gap in plan.capsule.missing %}<span class="tag">{{ gap }}</span> {% endfor %}
+                    </p>
+                </div>
+            {% endif %}
+
+            {% if plan.capsule.pieces %}
+                <div class="rail">
+                    {% for piece in plan.capsule.pieces %}
+                        <article class="look sheen">
+                            <div class="look-media">
+                                <div class="look-figure">
+                                    {% if piece.image_url %}
+                                        <img src="{{ piece.image_url }}" alt="{{ piece.type or 'piece' }}"
+                                             loading="lazy" data-full-image="{{ piece.image_url }}">
+                                    {% endif %}
+                                </div>
+                                <div class="look-band" aria-hidden="true">
+                                    <i style="--c: {{ item_hex(piece) }}; --n: 1;"></i>
+                                </div>
+                            </div>
+                            <div class="look-body">
+                                <div class="piece-head" style="border:none; padding:0">
+                                    <span class="chip" style="--c: {{ item_hex(piece) }};"></span>
+                                    <h3 class="piece-type">{{ piece.type or 'piece' }}</h3>
+                                </div>
+                                <div class="look-pieces">
+                                    <span class="tag">{{ categorise(piece) }}</span>
+                                    {% if piece.material %}<span class="tag">{{ piece.material }}</span>{% endif %}
+                                </div>
+                            </div>
+                        </article>
+                    {% endfor %}
+                </div>
+
+                <p class="t-voice t-quiet" style="margin-top:1rem">
+                    Covers {% for need in plan.capsule.covered | sort %}<span class="tag">{{ need }}</span> {% endfor %}
+                </p>
+            {% else %}
+                <div class="empty">
+                    <p class="empty-title">Nothing to pack yet</p>
+                    <a class="btn btn-primary" href="{{ url_for('index') }}">Upload some clothes</a>
+                </div>
+            {% endif %}
+        </section>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

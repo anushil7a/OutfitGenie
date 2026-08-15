@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Insights — OutfitGenie{% endblock %}
+
+{% block content %}
+<div class="shell">
+
+    <section class="section">
+        <p class="t-data eyebrow">Insights</p>
+        <h1 class="t-display" style="font-size:var(--display); margin-bottom:1.25rem">
+            Your closet,<br>measured
+        </h1>
+
+        {% if report.total %}
+            <div class="figures">
+                <div class="figure">
+                    <span class="figure-n">{{ report.total }}</span>
+                    <span class="t-data t-quiet">pieces</span>
+                </div>
+                <div class="figure">
+                    <span class="figure-n">{{ report.stats.colours }}</span>
+                    <span class="t-data t-quiet">colours</span>
+                </div>
+                <div class="figure">
+                    <span class="figure-n">{{ report.stats.neutral_share }}%</span>
+                    <span class="t-data t-quiet">neutral</span>
+                </div>
+                <div class="figure">
+                    <span class="figure-n">{{ capacity.wearable }}</span>
+                    <span class="t-data t-quiet">outfits</span>
+                </div>
+            </div>
+
+            {% if report.findings %}
+                <div class="stack" style="margin-top:1.5rem">
+                    {% for finding in report.findings %}
+                        <div class="finding is-{{ finding.severity }} sheen">
+                            <div class="finding-head">
+                                <h2 class="finding-title">{{ finding.title }}</h2>
+                                <span class="t-data t-quiet">{{ finding.severity }}</span>
+                            </div>
+                            <p class="t-voice" style="margin:0">{{ finding.detail }}</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="empty">
+                <p class="empty-title">Nothing read yet</p>
+                <a class="btn btn-primary" href="{{ url_for('index') }}">Upload a photo</a>
+            </div>
+        {% endif %}
+    </section>
+
+    {# ── what to wear it with ────────────────────────────────────────── #}
+    {% if chosen %}
+    <section class="section">
+        <p class="t-data eyebrow">Pairings · OKLCH</p>
+        <h2 class="t-display" style="font-size:var(--xl); margin-bottom:1rem">Wear it with</h2>
+
+        <div class="pairing-subject sheen">
+            <span class="chip chip-lg" style="--c: {{ chosen_hex }};"></span>
+            <div style="flex:1 1 10rem; min-width:0">
+                <p class="piece-type" style="margin:0">{{ chosen.type or 'piece' }}</p>
+                <p class="t-data t-quiet" style="margin:0">{{ chosen_hex }} · {{ chosen_slot }}</p>
+            </div>
+            <form method="get" style="flex:0 1 18rem">
+                <label class="field-label sr-only" for="piece">Piece</label>
+                <select class="select" name="piece" id="piece" onchange="this.form.submit()">
+                    {# Colour is the disambiguator: three different polo shirts
+                       all read as "polo shirt" without it. #}
+                    {% for item in items %}
+                        <option value="{{ item.id }}" {% if chosen.id == item.id %}selected{% endif %}>
+                            {{ item.type or 'piece' }}{% if item.color %} · {{ item.color }}{% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+                <noscript><button type="submit" class="btn">Go</button></noscript>
+            </form>
+        </div>
+
+        {% if groups %}
+            <div class="pair-groups">
+                {% for group in groups %}
+                    <div class="panel sheen">
+                        <div class="panel-head">
+                            <span class="t-data">{{ group.label }}</span>
+                            <span class="t-data t-quiet">{{ group.count }}</span>
+                        </div>
+                        <div class="panel-body stack-tight">
+                            {% for pair in group.rows %}
+                                <div class="pair">
+                                    <span class="pair-swatch">
+                                        <i style="--c: {{ chosen_hex }};"></i>
+                                        <i style="--c: {{ pair.hex }};"></i>
+                                    </span>
+                                    <div class="pair-body">
+                                        <div class="pair-head">
+                                            <span class="rank-name">{{ pair.item.type or 'piece' }}</span>
+                                            <span class="rank-score">{{ pair.score }}</span>
+                                        </div>
+                                        <span class="tag">{{ pair.relation }}</span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty">
+                <p class="empty-title">Nothing to pair this with</p>
+                <p class="t-voice t-quiet" style="margin:0">Upload something from another slot.</p>
+            </div>
+        {% endif %}
+    </section>
+    {% endif %}
+
+</div>
+{% endblock %}

@@ -1,10 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="color-scheme" content="light dark">
+    <title>{% block title %}OutfitGenie{% endblock %}</title>
+
+    {# Resolve the theme before first paint so there is no flash of the wrong ground. #}
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem("og-theme");
+          if (saved === "light" || saved === "dark") {
+            document.documentElement.setAttribute("data-theme", saved);
+          }
+        } catch (e) { /* private mode: fall through to the system preference */ }
+      })();
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Newsreader:opsz,wght@6..72,300..600&family=Martian+Mono:wdth,wght@75..112.5,300..700&display=swap">
+
+    {# Tailwind v4 browser build. Utilities only -- everything structural is in
+       style.css, so the page is correct before this finishes compiling. #}
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style type="text/tailwindcss">
+      @theme {
+        --color-ground:   #EDEDEA;
+        --color-card:     #FFFFFF;
+        --color-ink:      #16171A;
+        --color-graphite: #5A5D63;
+        --color-rule:     #CDCDC8;
+        --color-signal:   #C8322B;
+        --font-display:   "Archivo", ui-sans-serif, system-ui, sans-serif;
+        --font-voice:     "Newsreader", Georgia, serif;
+        --font-data:      "Martian Mono", ui-monospace, monospace;
+      }
+    </style>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block head %}{% endblock %}
+</head>
+{# The ambient wash takes its hue from the colour you own most of, so even
+   the light in the room is wardrobe data rather than a brand colour. #}
+<body{% if spectrum %} style="--glow-c: {{ spectrum[0].hex }};"{% endif %}>
+    <div class="glow" aria-hidden="true"></div>
+    <a class="sr-only" href="#main">Skip to content</a>
+
+    <header class="topbar">
+        <div class="shell">
+            <div class="topbar-in">
+                <a class="wordmark" href="{{ url_for('index') }}">OutfitGenie</a>
+
+                <nav class="nav" aria-label="Main">
                     {% if current_user.is_authenticated %}
-                        <a href="{{ url_for('index') }}" class="text-gray-600 hover:text-gray-800">Home</a>
-                        <a href="{{ url_for('outfits.my_outfits') }}" class="text-gray-600 hover:text-gray-800">My Outfits</a>
-                        <a href="{{ url_for('chat.chat') }}" class="text-gray-600 hover:text-gray-800">Chat</a>
-                        <a href="{{ url_for('ai_data.ai_data') }}" class="text-gray-600 hover:text-gray-800">AI Data</a>
-                        <a href="{{ url_for('auth.logout') }}" class="text-gray-600 hover:text-gray-800">Logout</a>
+                        <a class="nav-link {% if request.endpoint == 'index' %}is-current{% endif %}"
+                           href="{{ url_for('index') }}">Upload</a>
+                        <a class="nav-link {% if request.endpoint == 'outfits.my_outfits' %}is-current{% endif %}"
+                           href="{{ url_for('outfits.my_outfits') }}">Wardrobe</a>
+                        <a class="nav-link {% if request.endpoint == 'insights.wardrobe_insights' %}is-current{% endif %}"
+                           href="{{ url_for('insights.wardrobe_insights') }}">Insights</a>
+                        <a class="nav-link {% if request.endpoint == 'insights.pack' %}is-current{% endif %}"
+                           href="{{ url_for('insights.pack') }}">Pack</a>
+                        <a class="nav-link {% if request.endpoint == 'chat.chat' %}is-current{% endif %}"
+                           href="{{ url_for('chat.chat') }}">Stylist</a>
+                        <a class="nav-link {% if request.endpoint == 'ai_data.ai_data' %}is-current{% endif %}"
+                           href="{{ url_for('ai_data.ai_data') }}">AI data</a>
+                        <a class="nav-link" href="{{ url_for('auth.logout') }}">Log out</a>
                     {% else %}
-                        <a href="{{ url_for('auth.login') }}" class="text-gray-600 hover:text-gray-800">Login</a>
-                        <a href="{{ url_for('auth.register') }}" class="text-gray-600 hover:text-gray-800">Register</a>
-                    {% endif %} 
+                        <a class="nav-link" href="{{ url_for('auth.login') }}">Log in</a>
+                        <a class="nav-link" href="{{ url_for('auth.register') }}">Register</a>
+                    {% endif %}
+                    <button type="button" class="btn btn-ghost" id="theme-toggle" aria-pressed="false">
+                        <span id="theme-toggle-label">Dark</span>
+                    </button>
+                </nav>
+            </div>
+
+            {# The wardrobe spectrum. Present on every page; width is how much
+               of each colour you own. #}
+            {% if spectrum %}
+                <div class="spectrum" id="global-spectrum"
+                     role="img"
+                     aria-label="Your wardrobe: {{ wardrobe_count }} pieces across {{ spectrum|length }} colours">
+                    {% for seg in spectrum %}
+                        <div class="seg" style="--c: {{ seg.hex }}; --n: {{ seg.count }};"
+                             title="{{ seg.name }} — {{ seg.count }} piece{{ '' if seg.count == 1 else 's' }} ({{ seg.pct }}%)"></div>
+                    {% endfor %}
+                </div>
+            {% elif current_user.is_authenticated %}
+                <div class="spectrum is-empty" role="img" aria-label="No pieces read yet"></div>
+            {% endif %}
+            <div style="height:.5rem"></div>
+        </div>
+    </header>
+
+    <main id="main">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="foot">
+        <div class="shell foot-in">
+            <span class="t-data">Built by Anushil Adhikari · © 2026</span>
+            <a class="t-data" href="https://www.linkedin.com/in/anushil-adhikari/" target="_blank" rel="noopener">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-10h3v10zm-1.5-11.268c-.966 0-1.75-.784-1.75-1.75s.784-1.75 1.75-1.75 1.75.784 1.75 1.75-.784 1.75-1.75 1.75zm15.5 11.268h-3v-5.604c0-1.337-.025-3.063-1.868-3.063-1.868 0-2.154 1.459-2.154 2.967v5.7h-3v-10h2.881v1.367h.041c.401-.761 1.379-1.563 2.841-1.563 3.039 0 3.6 2.001 3.6 4.601v5.595z"/></svg>
+                LinkedIn
+            </a>
+        </div>
+    </footer>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

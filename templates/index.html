@@ -1,290 +1,260 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>AI Outfit Finder</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body class="bg-gray-100">
-    <nav class="bg-white shadow-lg">
-        <div class="max-w-6xl mx-auto px-4">
-            <div class="flex justify-between items-center py-4">
-                <div class="text-xl font-bold text-gray-800">AI Outfit Finder</div>
-                <div class="flex items-center space-x-6">
-                    <div class="space-x-4">
-                        {% if current_user.is_authenticated %}
-                            <a href="{{ url_for('index') }}" class="text-indigo-600 font-semibold">Home</a>
-                            <a href="{{ url_for('outfits.my_outfits') }}" class="text-gray-600 hover:text-gray-800">My Outfits</a>
-                            <a href="{{ url_for('chat.chat') }}" class="text-gray-600 hover:text-gray-800">Chat</a>
-                            <a href="{{ url_for('ai_data.ai_data') }}" class="text-gray-600 hover:text-gray-800">AI Data</a>
-                            <a href="{{ url_for('auth.logout') }}" class="text-gray-600 hover:text-gray-800">Logout</a>
-                        {% else %}
-                            <a href="{{ url_for('auth.login') }}" class="text-gray-600 hover:text-gray-800">Login</a>
-                            <a href="{{ url_for('auth.register') }}" class="text-gray-600 hover:text-gray-800">Register</a>
-                        {% endif %}
-                    </div>
+{% extends "base.html" %}
+
+{% block title %}Upload — OutfitGenie{% endblock %}
+
+{% block content %}
+<div class="shell">
+
+    {# ── the read ────────────────────────────────────────────────────
+       The drop zone is the page, not a card competing with a 12-field
+       form. Everything secondary lives in a drawer further down. #}
+    <section class="section">
+        {% if current_user.is_authenticated %}
+            <p class="t-data eyebrow">Add to wardrobe</p>
+            <h1 class="t-display" style="font-size:var(--display); margin-bottom:.85rem">Read new pieces</h1>
+            <p class="t-voice" style="margin:0 0 1.5rem">
+                Photograph anything. The AI reads it.
+            </p>
+
+            <input type="file" id="clothing-upload" accept="image/*" multiple class="sr-only">
+            <label class="dropzone" id="dropzone" for="clothing-upload">
+                <span class="dropzone-mark">Drop photos</span>
+                <span class="t-data t-quiet">or choose files · 16 mb</span>
+            </label>
+
+            <div id="upload-preview" hidden>
+                <div class="band-note" style="margin-top:1.5rem">
+                    <span class="t-data"><span id="selected-count">0</span> selected</span>
+                    <button type="button" class="btn btn-ghost" id="deselect-all">Clear all</button>
+                </div>
+                <div class="tiles" id="preview-container"></div>
+                <div class="btn-row" style="margin-top:1rem; justify-content:flex-end">
+                    <button type="button" class="btn btn-primary" id="confirm-upload">Read pieces</button>
                 </div>
             </div>
-        </div>
-    </nav>
-
-    <main class="max-w-6xl mx-auto px-4 py-8">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <!-- Upload Section -->
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-2xl font-bold mb-4">Upload Your Clothes</h2>
-                <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                    <input type="file" id="clothing-upload" class="hidden" accept="image/*" multiple>
-                    <label for="clothing-upload" class="cursor-pointer">
-                        <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                        <p class="mt-1 text-sm text-gray-600">Click to select clothing images</p>
-                        <p class="mt-1 text-xs text-gray-500">You can select multiple images at once</p>
-                    </label>
-                </div>
-                <div id="upload-preview" class="mt-4 hidden">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-semibold">Selected Images:</h3>
-                        <div class="space-x-2">
-                            <button id="select-all" class="text-sm text-indigo-600 hover:text-indigo-800">Select All</button>
-                            <button id="deselect-all" class="text-sm text-gray-600 hover:text-gray-800">Deselect All</button>
-                        </div>
-                    </div>
-                    <div id="preview-container" class="grid grid-cols-2 gap-4"></div>
-                    <div class="mt-4 flex justify-between items-center">
-                        <div class="text-sm text-gray-600">
-                            <span id="selected-count">0</span> images selected
-                        </div>
-                        <button id="confirm-upload" class="flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                            Upload Selected Images
-                        </button>
-                    </div>
-                </div>
+        {% else %}
+            <p class="t-data eyebrow">OutfitGenie</p>
+            <h1 class="t-display" style="font-size:var(--display); margin-bottom:.85rem">
+                Your closet is<br>the brand colour
+            </h1>
+            <p class="t-voice" style="margin-bottom:1.5rem">
+                Photograph what you own. The AI reads it and dresses you for the weather.
+            </p>
+            <div class="btn-row">
+                <a class="btn btn-primary" href="{{ url_for('auth.register') }}">Create an account</a>
+                <a class="btn" href="{{ url_for('auth.login') }}">Log in</a>
             </div>
+        {% endif %}
+    </section>
 
-            <!-- Preferences Section -->
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-2xl font-bold mb-4">User Information</h2>
-                <form id="preferences-form" class="space-y-4">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Height (in)</label>
-                        <input type="number" name="height" value="{{ current_user.height if current_user.height else '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Weight (lbs)</label>
-                        <input type="number" name="weight" value="{{ current_user.weight if current_user.weight else '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Skin Tone</label>
-                        <div class="mt-1 flex items-center space-x-4">
-                            <input type="color" id="skin-tone-color" name="skin_tone_color" 
-                                   value="{{ current_user.preferences.get('skin_tone_color', '#FFD6C4') if current_user.preferences else '#FFD6C4' }}"
-                                   class="h-10 w-20 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <input type="text" id="skin-tone-text" name="skin_tone_text" 
-                                   value="{{ current_user.preferences.get('skin_tone_text', '') if current_user.preferences else '' }}"
-                                   placeholder="Or type your skin tone (e.g., fair, medium, dark)"
-                                   class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Hair Color</label>
-                        <select name="hair_color" id="hair_color" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">Select hair color</option>
-                            <option value="black" {% if current_user.preferences and current_user.preferences.get('hair_color') == 'black' %}selected{% endif %}>Black</option>
-                            <option value="brown" {% if current_user.preferences and current_user.preferences.get('hair_color') == 'brown' %}selected{% endif %}>Brown</option>
-                            <option value="blonde" {% if current_user.preferences and current_user.preferences.get('hair_color') == 'blonde' %}selected{% endif %}>Blonde</option>
-                            <option value="red" {% if current_user.preferences and current_user.preferences.get('hair_color') == 'red' %}selected{% endif %}>Red</option>
-                            <option value="gray" {% if current_user.preferences and current_user.preferences.get('hair_color') == 'gray' %}selected{% endif %}>Gray</option>
-                            <option value="white" {% if current_user.preferences and current_user.preferences.get('hair_color') == 'white' %}selected{% endif %}>White</option>
-                            <option value="other" {% if current_user.preferences and current_user.preferences.get('hair_color') not in ['black', 'brown', 'blonde', 'red', 'gray', 'white', ''] %}selected{% endif %}>Other</option>
-                        </select>
-                    </div>
-                    <div id="other_hair_color_container" class="{% if current_user.preferences and current_user.preferences.get('hair_color') not in ['black', 'brown', 'blonde', 'red', 'gray', 'white', ''] %}block{% else %}hidden{% endif %}">
-                        <label class="block text-sm font-medium text-gray-700">Custom Hair Color</label>
-                        <input type="text" name="other_hair_color" id="other_hair_color" 
-                               value="{{ current_user.preferences.get('hair_color', '') if current_user.preferences and current_user.preferences.get('hair_color') not in ['black', 'brown', 'blonde', 'red', 'gray', 'white', ''] else '' }}"
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                               placeholder="Enter your hair color">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Gender</label>
-                        <select name="gender" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">Select gender</option>
-                            <option value="male" {% if current_user.gender == 'male' %}selected{% endif %}>Male</option>
-                            <option value="female" {% if current_user.gender == 'female' %}selected{% endif %}>Female</option>
-                            <option value="non-binary" {% if current_user.gender == 'non-binary' %}selected{% endif %}>Non-binary</option>
-                            <option value="prefer-not-to-say" {% if current_user.gender == 'prefer-not-to-say' %}selected{% endif %}>Prefer not to say</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Style Preferences</label>
-                        <div class="mt-2 space-y-2">
-                            <div class="flex items-center">
-                                <input type="checkbox" name="styles" value="casual" id="style-casual" 
-                                    {% if current_user.preferences and 'casual' in current_user.preferences.get('styles', []) %}checked{% endif %}
-                                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                                <label for="style-casual" class="ml-2 block text-sm text-gray-700">Casual</label>
-                            </div>
-                            <div class="flex items-center">
-                                <input type="checkbox" name="styles" value="formal" id="style-formal"
-                                    {% if current_user.preferences and 'formal' in current_user.preferences.get('styles', []) %}checked{% endif %}
-                                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                                <label for="style-formal" class="ml-2 block text-sm text-gray-700">Formal</label>
-                            </div>
-                            <div class="flex items-center">
-                                <input type="checkbox" name="styles" value="business" id="style-business"
-                                    {% if current_user.preferences and 'business' in current_user.preferences.get('styles', []) %}checked{% endif %}
-                                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                                <label for="style-business" class="ml-2 block text-sm text-gray-700">Business</label>
-                            </div>
-                            <div class="flex items-center">
-                                <input type="checkbox" name="styles" value="sporty" id="style-sporty"
-                                    {% if current_user.preferences and 'sporty' in current_user.preferences.get('styles', []) %}checked{% endif %}
-                                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                                <label for="style-sporty" class="ml-2 block text-sm text-gray-700">Sporty</label>
-                            </div>
-                            <div class="flex items-center">
-                                <input type="checkbox" name="styles" value="bohemian" id="style-bohemian"
-                                    {% if current_user.preferences and 'bohemian' in current_user.preferences.get('styles', []) %}checked{% endif %}
-                                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                                <label for="style-bohemian" class="ml-2 block text-sm text-gray-700">Bohemian</label>
-                            </div>
-                            <div class="flex items-center">
-                                <input type="checkbox" name="styles" value="other" id="style-other"
-                                    {% if current_user.preferences and 'other' in current_user.preferences.get('styles', []) %}checked{% endif %}
-                                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                                <label for="style-other" class="ml-2 block text-sm text-gray-700">Other</label>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="other-style-container" class="hidden">
-                        <label class="block text-sm font-medium text-gray-700">Custom Style</label>
-                        <input type="text" name="other_style" value="{{ current_user.preferences.get('custom_style', '') if current_user.preferences else '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Enter your custom style">
-                    </div>
+    {% if current_user.is_authenticated %}
+    {# ── today ───────────────────────────────────────────────────────── #}
+    <section class="section">
+        <p class="t-data eyebrow">Today</p>
 
-                    <!-- Location Input -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Your Location</label>
-                        <div class="mt-1 flex space-x-2">
-                            <input type="text" id="location-input" value="{{ current_location if current_location else '' }}" 
-                                   class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                   placeholder="Enter your city (e.g., London, New York)">
-                            <button type="button" onclick="updateLocation()" 
-                                    class="inline-flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                                Update
-                            </button>
-                        </div>
-                        <p class="mt-1 text-sm text-gray-500">
-                            {% if current_location %}
-                            Current location: {{ current_location }}
-                            {% else %}
-                            Enter your city to get weather-based outfit recommendations
-                            {% endif %}
-                        </p>
-                    </div>
-
-                    <div>
-                        <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                            Save Preferences
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- Weather Section - Moved below preferences -->
-        <div id="weather-section" class="bg-white rounded-lg shadow-md p-6 my-8" {% if not weather %}style="display: none;"{% endif %}>
-            <h2 class="text-2xl font-bold mb-4">Today's Weather</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="stack">
+            <div class="panel sheen" id="weather-section" {% if not weather %}hidden{% endif %}>
                 {% if weather %}
-                <div class="bg-gray-50 rounded-lg p-4">
-                    <div class="flex items-center space-x-4 mb-4">
-                        {% if weather.icon %}
-                        <img src="{{ weather.icon }}" alt="{{ weather.condition }}" class="w-16 h-16">
-                        {% endif %}
+                <div class="weather">
+                    {% if weather.icon %}
+                        <img src="{{ weather.icon }}" alt="">
+                    {% endif %}
+                    {% if weather.temperature %}
                         <div>
-                            {% if weather.temperature %}
-                            <h3 class="text-xl font-semibold">{{ weather.temperature }}°F</h3>
-                            {% endif %}
+                            <div class="weather-temp">{{ weather.temperature }}°F</div>
                             {% if weather.description %}
-                            <p class="text-gray-600 capitalize">{{ weather.description }}</p>
+                                <div class="t-data t-quiet">{{ weather.description }}</div>
                             {% endif %}
                         </div>
-                    </div>
-                    <div class="space-y-2">
+                    {% endif %}
+                    <div class="weather-stats">
                         {% if weather.feels_like %}
-                        <p><span class="font-medium">Feels like:</span> {{ weather.feels_like }}°F</p>
+                        <div class="weather-stat">
+                            <span class="t-data t-quiet">Feels like</span>
+                            <b>{{ weather.feels_like }}°F</b>
+                        </div>
                         {% endif %}
                         {% if weather.humidity %}
-                        <p><span class="font-medium">Humidity:</span> {{ weather.humidity }}%</p>
+                        <div class="weather-stat">
+                            <span class="t-data t-quiet">Humidity</span>
+                            <b>{{ weather.humidity }}%</b>
+                        </div>
                         {% endif %}
                         {% if weather.wind_speed %}
-                        <p><span class="font-medium">Wind Speed:</span> {{ weather.wind_speed }} mph</p>
+                        <div class="weather-stat">
+                            <span class="t-data t-quiet">Wind</span>
+                            <b>{{ weather.wind_speed }} mph</b>
+                        </div>
                         {% endif %}
                     </div>
                 </div>
                 {% endif %}
             </div>
-        </div>
 
-        <!-- Weather-based Recommendations Section -->
-        <div class="mt-8 bg-white rounded-lg shadow-md p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold">Weather-Based Outfit Recommendations</h2>
-                <button id="refresh-recommendations" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                    Refresh Recommendations
-                </button>
+            <div class="panel sheen">
+                <div class="panel-head">
+                    <span class="t-data">Your city</span>
+                    {% if current_location %}
+                        <span class="t-data t-quiet">{{ current_location }}</span>
+                    {% endif %}
+                </div>
+                <div class="panel-body">
+                    <div class="field-row">
+                        <input type="text" id="location-input" class="input"
+                               value="{{ current_location if current_location else '' }}"
+                               placeholder="London, New York, Dallas…">
+                        <button type="button" class="btn" onclick="updateLocation()">Update</button>
+                    </div>
+                    {% if not current_location %}
+                        <p class="t-data t-quiet" style="margin:.6rem 0 0">Add a city</p>
+                    {% endif %}
+                </div>
             </div>
-            <div id="weather-recommendations" class="space-y-4">
-                <!-- Recommendations will be loaded here -->
+
+            <div class="panel sheen">
+                <div class="panel-head">
+                    <span class="t-data">Today's picks</span>
+                    <button type="button" class="btn btn-ghost" id="refresh-recommendations">Refresh</button>
+                </div>
+                <div class="panel-body">
+                    <div id="weather-recommendations" class="stack"></div>
+                </div>
             </div>
         </div>
-    </main>
+    </section>
 
-    <!-- Contact Me Box -->
-    <div class="max-w-2xl mx-auto mt-10 mb-8 bg-white rounded-lg shadow-md p-6">
-        <h2 class="text-xl font-semibold mb-4">Contact Me</h2>
-        <form id="contact-form" action="https://formspree.io/f/mpwanawg" method="POST" class="space-y-4">
-            <div>
-                <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
-                <input type="text" id="name" name="name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-            </div>
-            <div>
-                <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
-                <input type="email" id="email" name="email" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-            </div>
-            <div>
-                <label for="subject" class="block text-sm font-medium text-gray-700">Subject</label>
-                <input type="text" id="subject" name="subject" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-            </div>
-            <div>
-                <label for="message" class="block text-sm font-medium text-gray-700">Message</label>
-                <textarea id="message" name="message" rows="4" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
-            </div>
-            <button type="submit" class="w-full px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Send</button>
-            <p id="contact-success" class="hidden text-green-600 mt-2">Thank you! Your message has been sent.</p>
-        </form>
-    </div>
+    {# ── secondary: profile and contact ──────────────────────────────
+       Both were competing with the product on the first screen. They
+       open when wanted. #}
+    <section class="section">
+        <p class="t-data eyebrow">Settings</p>
 
-    <footer class="max-w-2xl mx-auto mb-8 flex flex-col items-center text-gray-500 text-sm space-y-2">
-        <div class="flex items-center justify-between w-full">
-            <span>Created by Anushil Adhikari</span>
-            <a href="https://www.linkedin.com/in/anushil-adhikari/" target="_blank" rel="noopener" class="flex items-center space-x-1 hover:text-indigo-600">
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-10h3v10zm-1.5-11.268c-.966 0-1.75-.784-1.75-1.75s.784-1.75 1.75-1.75 1.75.784 1.75 1.75-.784 1.75-1.75 1.75zm15.5 11.268h-3v-5.604c0-1.337-.025-3.063-1.868-3.063-1.868 0-2.154 1.459-2.154 2.967v5.7h-3v-10h2.881v1.367h.041c.401-.761 1.379-1.563 2.841-1.563 3.039 0 3.6 2.001 3.6 4.601v5.595z"/></svg>
-                <span>LinkedIn</span>
-            </a>
-        </div>
-        <div class="flex items-center space-x-2">
-            <span>&copy;2025 Anushil Adhikari</span>
-        </div>
-    </footer>
+        <details class="drawer sheen">
+            <summary>Your profile</summary>
+            <div class="drawer-body">
+                <form id="preferences-form" class="stack">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    <!-- Weather recommendations JS moved to main.js -->
-</body>
-</html> 
+                    <div class="grid-fields grid-fields-2">
+                        <div class="field">
+                            <label class="field-label" for="height">Height (in)</label>
+                            <input class="input" type="number" id="height" name="height"
+                                   value="{{ current_user.height if current_user.height else '' }}">
+                        </div>
+                        <div class="field">
+                            <label class="field-label" for="weight">Weight (lbs)</label>
+                            <input class="input" type="number" id="weight" name="weight"
+                                   value="{{ current_user.weight if current_user.weight else '' }}">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label class="field-label" for="skin-tone-text">Skin tone</label>
+                        <div class="field-row">
+                            <input type="color" id="skin-tone-color" name="skin_tone_color" class="input-color"
+                                   aria-label="Skin tone swatch"
+                                   value="{{ current_user.preferences.get('skin_tone_color', '#FFD6C4') if current_user.preferences else '#FFD6C4' }}">
+                            <input type="text" id="skin-tone-text" name="skin_tone_text" class="input"
+                                   value="{{ current_user.preferences.get('skin_tone_text', '') if current_user.preferences else '' }}"
+                                   placeholder="Or describe it — fair, medium, deep">
+                        </div>
+                    </div>
+
+                    <div class="grid-fields grid-fields-2">
+                        <div class="field">
+                            <label class="field-label" for="hair_color">Hair colour</label>
+                            <select class="select" name="hair_color" id="hair_color">
+                                <option value="">Select</option>
+                                {% set hair = current_user.preferences.get('hair_color') if current_user.preferences else '' %}
+                                {% for value, label in [('black','Black'), ('brown','Brown'), ('blonde','Blonde'), ('red','Red'), ('gray','Gray'), ('white','White')] %}
+                                    <option value="{{ value }}" {% if hair == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                                <option value="other" {% if hair and hair not in ['black','brown','blonde','red','gray','white'] %}selected{% endif %}>Other</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label class="field-label" for="gender">Gender</label>
+                            <select class="select" name="gender" id="gender">
+                                <option value="">Select</option>
+                                {% for value, label in [('male','Male'), ('female','Female'), ('non-binary','Non-binary'), ('prefer-not-to-say','Prefer not to say')] %}
+                                    <option value="{{ value }}" {% if current_user.gender == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="field" id="other_hair_color_container"
+                         {% if not (hair and hair not in ['black','brown','blonde','red','gray','white']) %}hidden{% endif %}>
+                        <label class="field-label" for="other_hair_color">Describe your hair colour</label>
+                        <input class="input" type="text" name="other_hair_color" id="other_hair_color"
+                               value="{{ hair if hair and hair not in ['black','brown','blonde','red','gray','white'] else '' }}"
+                               placeholder="Auburn, silver, dyed teal…">
+                    </div>
+
+                    <div class="field">
+                        <span class="field-label">Styles you wear</span>
+                        <div class="choices">
+                            {% set chosen = current_user.preferences.get('styles', []) if current_user.preferences else [] %}
+                            {% for value, label in [('casual','Casual'), ('formal','Formal'), ('business','Business'), ('sporty','Sporty'), ('bohemian','Bohemian'), ('other','Other')] %}
+                                <label class="choice">
+                                    <input type="checkbox" name="styles" value="{{ value }}"
+                                           id="style-{{ value }}" {% if value in chosen %}checked{% endif %}>
+                                    <span>{{ label }}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="field" id="other-style-container"
+                         {% if 'other' not in chosen %}hidden{% endif %}>
+                        <label class="field-label" for="other_style">Name your style</label>
+                        <input class="input" type="text" name="other_style" id="other_style"
+                               value="{{ current_user.preferences.get('custom_style', '') if current_user.preferences else '' }}"
+                               placeholder="Workwear, gorpcore, minimal…">
+                    </div>
+
+                    <div class="btn-row" style="justify-content:flex-end">
+                        <button type="submit" class="btn btn-primary">Save profile</button>
+                    </div>
+                </form>
+            </div>
+        </details>
+
+        <details class="drawer sheen">
+            <summary>Contact</summary>
+            <div class="drawer-body">
+                <form id="contact-form" action="https://formspree.io/f/mpwanawg" method="POST" class="stack">
+                    <div class="grid-fields grid-fields-2">
+                        <div class="field">
+                            <label class="field-label" for="name">Name</label>
+                            <input class="input" type="text" id="name" name="name" required>
+                        </div>
+                        <div class="field">
+                            <label class="field-label" for="email">Email</label>
+                            <input class="input" type="email" id="email" name="email" required>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label class="field-label" for="subject">Subject</label>
+                        <input class="input" type="text" id="subject" name="subject" required>
+                    </div>
+                    <div class="field">
+                        <label class="field-label" for="message">Message</label>
+                        <textarea class="textarea" id="message" name="message" rows="4" required></textarea>
+                    </div>
+                    <div class="btn-row" style="justify-content:flex-end">
+                        <button type="submit" class="btn btn-primary">Send</button>
+                    </div>
+                    <p id="contact-success" class="t-data" hidden>Sent — thanks, I'll be in touch.</p>
+                </form>
+            </div>
+        </details>
+    </section>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% endblock %}

@@ -2,13 +2,11 @@ from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required, current_user
 from models import db, Outfit, Chat, RecommendationFeedback
 import json
-from openai import OpenAI
+from utils.llm import chat as llm_chat
 import os
 from datetime import datetime
 
 chat_bp = Blueprint('chat', __name__)
-
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 @chat_bp.route('/chat')
 @login_required
@@ -92,21 +90,58 @@ def chat_message():
         # Create a prompt for the AI based on the mode
         print(f"wardrobe_only: {wardrobe_only}")
         if wardrobe_only:
-            prompt = f"""As an AI fashion assistant, help the user with their outfit question: \"{message}\"\n\nUser's uploaded clothes:\n{json.dumps(outfits_info, indent=2)}\n\nUser's preferences and measurements:\n{json.dumps(current_user.preferences, indent=2)}\nHeight: {current_user.height}inches\nWeight: {current_user.weight}lbs\nGender: {current_user.gender}\n\nUser's AI Notes:\n{current_user.ai_notes or 'No additional notes provided.'}\n\nUser's past feedback on recommendations:\n{json.dumps(feedback_info, indent=2)}\n\nIMPORTANT: \n1. Only recommend outfits using the clothes the user has already uploaded.\n2. Consider the user's past feedback when making recommendations.\n3. Try to avoid recommending similar outfits that were previously disliked.\n4. Prioritize styles and combinations that were previously liked.\n\nPlease provide a VERY SHORT response (1-2 sentences maximum) that:\n1. Directly answers their question\n2. References specific items from their uploaded clothes\n3. Includes the image_url of the recommended items\n\nFormat your response as JSON with two fields:\n1. \"response\": your short answer\n2. \"image_urls\": list of image URLs for the recommended items\n\nResponse:"""
+            prompt = f"""As an AI fashion assistant, help the user with their outfit question: \"{message}\"
+            \n\nUser's uploaded clothes:\n{json.dumps(outfits_info, indent=2)}\n\n
+            User's preferences and measurements:\n{json.dumps(current_user.preferences, indent=2)}\n
+            Height: {current_user.height}inches\nWeight: {current_user.weight}lbs\n
+            Gender: {current_user.gender}\n\nUser's AI Notes:\n{current_user.ai_notes or 'No additional notes provided.'}\n\n
+            User's past feedback on recommendations:\n{json.dumps(feedback_info, indent=2)}\n\n
+            IMPORTANT: \n1. Only recommend outfits using the clothes the user has already uploaded.\n
+            2. Consider the user's past feedback when making recommendations.\n
+            3. Try to avoid recommending similar outfits that were previously disliked.\n
+            4. Prioritize styles and combinations that were previously liked.\n\n
+            Please provide a VERY SHORT response (1-2 sentences maximum) that:\n
+            1. Directly answers their question\n
+            2. References specific items from their uploaded clothes\n
+            3. Includes the image_url of the recommended items\n\n
+            Format your response as JSON with two fields:\n
+            1. \"response\": your short answer\n
+            2. \"image_urls\": list of image URLs for the recommended items\n\nResponse:"""
         else:
-            prompt = f"""As an AI fashion assistant, help the user with their outfit question: \"{message}\"\n\nUser's uploaded clothes:\n{json.dumps(outfits_info, indent=2)}\n\nUser's preferences and measurements:\n{json.dumps(current_user.preferences, indent=2)}\nHeight: {current_user.height}inches\nWeight: {current_user.weight}lbs\nGender: {current_user.gender}\n\nUser's AI Notes:\n{current_user.ai_notes or 'No additional notes provided.'}\n\nUser's past feedback on recommendations:\n{json.dumps(feedback_info, indent=2)}\n\nYou can recommend both items the user owns and items they don't own yet. When suggesting items they don't own, clearly indicate this in your response.\n\nIMPORTANT: \n1. Consider the user's past feedback when making recommendations.\n2. Try to avoid recommending similar outfits that were previously disliked.\n3. Prioritize styles and combinations that were previously liked.\n\nPlease provide a VERY SHORT response (1-2 sentences maximum) that:\n1. Directly answers their question\n2. References specific items from their uploaded clothes (if applicable)\n3. Suggests additional items they don't own (if relevant)\n4. Includes the image_url of any recommended items they own\n\nIMPORTANT: Your response MUST be in valid JSON format with these exact fields:\n{{\n    \"response\": \"your short answer here\",\n    \"image_urls\": [\"list\", \"of\", \"image\", \"urls\", \"from\", \"user's\", \"wardrobe\"]\n}}\n\nResponse:"""
+            prompt = f"""As an AI fashion assistant, help the user with their outfit question: \"{message}
+            \"\n\nUser's uploaded clothes:\n{json.dumps(outfits_info, indent=2)}\n\n
+            User's preferences and measurements:\n{json.dumps(current_user.preferences, indent=2)}\n
+            Height: {current_user.height}inches\nWeight: {current_user.weight}lbs\n
+            Gender: {current_user.gender}\n\nUser's AI Notes:\n
+            {current_user.ai_notes or 'No additional notes provided.'}\n\n
+            User's past feedback on recommendations:\n{json.dumps(feedback_info, indent=2)}\n\n
+            You can recommend both items the user owns and items they don't own yet. 
+            When suggesting items they don't own, clearly indicate this in your response.\n\n
+            IMPORTANT: 
+            \n1. Consider the user's past feedback when making recommendations.\n
+            2. Try to avoid recommending similar outfits that were previously disliked.\n
+            3. Prioritize styles and combinations that were previously liked.\n\n
+            Please provide a VERY SHORT response (1-2 sentences maximum) that:\n
+            1. Directly answers their question\n
+            2. References specific items from their uploaded clothes (if applicable)\n
+            3. Suggests additional items they don't own (if relevant)\n
+            4. Includes the image_url of any recommended items they own\n\n
+            IMPORTANT: 
+            Your response MUST be in valid JSON format with these exact fields:\n{{\n    \"
+            response\": \"your short answer here\",\n    
+            \"image_urls\": [\"list\", \"of\", \"image\", \"urls\", \"from\", \"user's\", \"wardrobe\"]\n}}\n\n
+            Response:"""
 
         # Get AI response
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
+        ai_response = llm_chat(
             messages=[
                 {"role": "system", "content": "You are a concise fashion assistant. Keep responses to 1-2 sentences maximum. Always format your response as valid JSON with 'response' and 'image_urls' fields."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=150
+            max_output_tokens=150,
         )
 
-        ai_response = response.choices[0].message.content.strip()
+        ai_response = (ai_response or "").strip()
 
         try:
             # Try to parse the response as JSON

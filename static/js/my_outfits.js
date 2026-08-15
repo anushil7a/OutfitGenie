@@ -1,160 +1,174 @@
-// My Outfits page JS
+/* ══════════════════════════════════════════════════════════════════════
+   OutfitGenie — wardrobe
+   Selection, favouriting, deletion, and filtering the rail by colour.
+   The lightbox and theme live in ui.js.
+   ══════════════════════════════════════════════════════════════════════ */
+(function () {
+  "use strict";
 
-document.addEventListener('DOMContentLoaded', () => {
-    // Toolbar buttons
-    const selAll = document.getElementById('select-all');
-    const desAll = document.getElementById('deselect-all');
-    const favSel = document.getElementById('favorite-selected');
-    const delSel = document.getElementById('delete-selected');
-    const boxes = () => Array.from(document.querySelectorAll('input.outfit-checkbox'));
+  function csrfToken() {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.content : null;
+  }
 
-    // Select all
-    selAll?.addEventListener('click', () => boxes().forEach(cb => cb.checked = true));
-    // Deselect all
-    desAll?.addEventListener('click', () => boxes().forEach(cb => cb.checked = false));
+  function say(message, isError) {
+    if (window.ogToast) window.ogToast(message, isError);
+    else if (isError) console.error(message);
+  }
 
-    // Favorite selected
-    favSel?.addEventListener('click', async () => {
-        const ids = boxes().filter(cb => cb.checked).map(cb => cb.dataset.outfitId);
-        if (!ids.length) return alert('Select at least one outfit first');
-        for (const id of ids) await window.toggleFavorite(id);
-        boxes().forEach(cb => cb.checked = false);
-    });
+  function looks(n) {
+    return n + (n === 1 ? " look" : " looks");
+  }
 
-    // Delete selected
-    delSel?.addEventListener('click', async () => {
-        const ids = boxes().filter(cb => cb.checked).map(cb => cb.dataset.outfitId);
-        if (!ids.length) return alert('Select at least one outfit first');
-        if (!confirm(`Delete ${ids.length} outfit(s)? This can't be undone.`)) return;
-        for (const id of ids) await window.deleteOutfit(id, false);
-    });
+  function checkboxes() {
+    return Array.prototype.slice.call(document.querySelectorAll("input.outfit-checkbox"));
+  }
 
-    // Modal logic for full-size image (using .modal-trigger class)
-    const modalTriggers = document.querySelectorAll('.modal-trigger');
-    let modalContainer = document.getElementById('my-image-modal');
+  function selectedIds() {
+    return checkboxes().filter(function (box) { return box.checked; })
+                       .map(function (box) { return box.dataset.outfitId; });
+  }
 
-    if (!modalContainer) {
-        modalContainer = document.createElement('div');
-        modalContainer.id = 'my-image-modal';
-        modalContainer.style.position = 'fixed';
-        modalContainer.style.top = '0';
-        modalContainer.style.left = '0';
-        modalContainer.style.width = '100%';
-        modalContainer.style.height = '100%';
-        modalContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-        modalContainer.style.display = 'none';
-        modalContainer.style.justifyContent = 'center';
-        modalContainer.style.alignItems = 'center';
-        modalContainer.style.zIndex = '9999';
-        modalContainer.style.cursor = 'pointer';
-        modalContainer.style.transition = 'opacity 0.3s ease-in-out';
-        modalContainer.style.opacity = '0';
+  /* ── single-look actions ──────────────────────────────────────────
+     Exposed on window because the markup calls them inline. */
+  window.toggleFavorite = async function (id) {
+    var card = document.querySelector('[data-outfit-id="' + id + '"]');
+    var button = card ? card.querySelector(".favorite-btn") : null;
+    var wasFavourite = button ? button.getAttribute("aria-pressed") === "true" : false;
 
-        const modalImage = document.createElement('img');
-        modalImage.id = 'my-modal-image';
-        modalImage.style.maxWidth = '90%';
-        modalImage.style.maxHeight = '90%';
-        modalImage.style.objectFit = 'contain';
-        modalImage.style.cursor = 'default';
+    var token = csrfToken();
+    if (!token) { say("Your session expired. Reload the page.", true); return false; }
 
-        modalContainer.appendChild(modalImage);
-        document.body.appendChild(modalContainer);
+    try {
+      var response = await fetch("/feedback", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": token },
+        body: JSON.stringify({ outfit_id: id, rating: wasFavourite ? 0 : 1 })
+      });
+      if (!response.ok) throw new Error();
+      if (button) button.setAttribute("aria-pressed", wasFavourite ? "false" : "true");
+      return true;
+    } catch (error) {
+      say("Couldn't update that favourite. Try again.", true);
+      return false;
+    }
+  };
 
-        modalContainer.addEventListener('click', function(event) {
-            if (event.target === modalContainer) {
-                modalContainer.style.opacity = '0';
-                setTimeout(function() {
-                    modalContainer.style.display = 'none';
-                }, 300);
-            }
-        });
+  window.deleteOutfit = async function (id, confirmFirst) {
+    if (confirmFirst !== false && !confirm("Delete this look? This can't be undone.")) return false;
+
+    var token = csrfToken();
+    if (!token) { say("Your session expired. Reload the page.", true); return false; }
+
+    try {
+      var response = await fetch("/delete-outfit/" + id, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": token }
+      });
+      if (!response.ok) throw new Error();
+      var card = document.querySelector('[data-outfit-id="' + id + '"]');
+      if (card) card.remove();
+      if (!document.querySelectorAll("[data-outfit-id]").length) {
+        window.location.reload();
+      }
+      return true;
+    } catch (error) {
+      say("Couldn't delete that look. Try again.", true);
+      return false;
+    }
+  };
+
+  document.addEventListener("DOMContentLoaded", function () {
+
+    /* ── bulk actions ───────────────────────────────────────────────── */
+    var selectAll = document.getElementById("select-all");
+    var clearAll = document.getElementById("deselect-all");
+    var favouriteSelected = document.getElementById("favorite-selected");
+    var deleteSelected = document.getElementById("delete-selected");
+
+    if (selectAll) {
+      selectAll.addEventListener("click", function () {
+        checkboxes().forEach(function (box) { box.checked = true; });
+      });
+    }
+    if (clearAll) {
+      clearAll.addEventListener("click", function () {
+        checkboxes().forEach(function (box) { box.checked = false; });
+      });
     }
 
-    modalTriggers.forEach(function(triggerElement) {
-        const imageLinkElement = triggerElement.previousElementSibling;
-        let imageUrl = null;
-        if (imageLinkElement && imageLinkElement.tagName === 'A') {
-            const imgElement = imageLinkElement.querySelector('img');
-            if (imgElement) {
-                imageUrl = imgElement.src;
-            }
+    if (favouriteSelected) {
+      favouriteSelected.addEventListener("click", async function () {
+        var ids = selectedIds();
+        if (!ids.length) { say("Select a look first.", true); return; }
+        favouriteSelected.disabled = true;
+        var done = 0;
+        for (var i = 0; i < ids.length; i++) {
+          if (await window.toggleFavorite(ids[i])) done++;
         }
-        if (imageUrl) {
-            triggerElement.addEventListener('click', function() {
-                const modalContainer = document.getElementById('my-image-modal');
-                const modalImage = document.getElementById('my-modal-image');
-                if (modalContainer && modalImage) {
-                    modalImage.src = imageUrl;
-                    modalContainer.style.display = 'flex';
-                    setTimeout(function() {
-                        modalContainer.style.opacity = '1';
-                    }, 10);
-                }
-            });
-        }
-    });
-
-    // Toggle Detected Items visibility (button switch)
-    const toggleDetectedItemsBtn = document.getElementById('toggle-detected-items');
-    if (toggleDetectedItemsBtn) {
-        function setSwitchState(isOn) {
-            toggleDetectedItemsBtn.setAttribute('aria-checked', isOn ? 'true' : 'false');
-            toggleDetectedItemsBtn.classList.toggle('bg-indigo-600', isOn);
-            toggleDetectedItemsBtn.classList.toggle('bg-gray-300', !isOn);
-            const thumb = toggleDetectedItemsBtn.querySelector('span:not(.sr-only)');
-            if (thumb) {
-                thumb.classList.toggle('translate-x-5', isOn);
-                thumb.classList.toggle('translate-x-0', !isOn);
-            }
-            // Show/hide detected items
-            const detectedSections = document.querySelectorAll('.detected-items-section');
-            detectedSections.forEach(section => {
-                section.style.display = isOn ? '' : 'none';
-            });
-        }
-        // Initial state: ON
-        setSwitchState(true);
-        toggleDetectedItemsBtn.addEventListener('click', function() {
-            const isOn = toggleDetectedItemsBtn.getAttribute('aria-checked') === 'true';
-            setSwitchState(!isOn);
-        });
-        // Keyboard accessibility
-        toggleDetectedItemsBtn.addEventListener('keydown', function(e) {
-            if (e.key === ' ' || e.key === 'Enter') {
-                e.preventDefault();
-                toggleDetectedItemsBtn.click();
-            }
-        });
+        checkboxes().forEach(function (box) { box.checked = false; });
+        favouriteSelected.disabled = false;
+        if (done) say(looks(done) + " updated");
+      });
     }
-});
 
-// Single-card actions
-window.toggleFavorite = async (id) => {
-    const btn = document.querySelector(`[data-outfit-id="${id}"] .favorite-btn`);
-    const isFavorited = btn?.classList.contains('bg-yellow-400');
-    const res = await fetch('/feedback', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content },
-        body: JSON.stringify({ outfit_id: id, rating: isFavorited ? 0 : 1 })
-    });
-    if (!res.ok) return alert('Failed to update favorite');
-    if (btn) {
-        btn.classList.toggle('bg-yellow-400', !isFavorited);
-        btn.classList.toggle('text-yellow-600', !isFavorited);
-        btn.classList.toggle('bg-white', isFavorited);
-        btn.classList.toggle('text-gray-600', isFavorited);
+    if (deleteSelected) {
+      deleteSelected.addEventListener("click", async function () {
+        var ids = selectedIds();
+        if (!ids.length) { say("Select a look first.", true); return; }
+        if (!confirm("Delete " + looks(ids.length) + "? This can't be undone.")) return;
+        deleteSelected.disabled = true;
+        var done = 0;
+        for (var i = 0; i < ids.length; i++) {
+          if (await window.deleteOutfit(ids[i], false)) done++;
+        }
+        deleteSelected.disabled = false;
+        if (done) say(looks(done) + " deleted");
+      });
     }
-};
 
-window.deleteOutfit = async (id, confirmDialog = true) => {
-    if (confirmDialog && !confirm('Delete this outfit forever?')) return;
-    const res = await fetch(`/delete-outfit/${id}`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content }
+    /* ── the detail switch ──────────────────────────────────────────── */
+    var detailSwitch = document.getElementById("toggle-detected-items");
+    if (detailSwitch) {
+      var applyDetail = function (isOn) {
+        detailSwitch.setAttribute("aria-checked", isOn ? "true" : "false");
+        document.querySelectorAll(".detected-items-section").forEach(function (section) {
+          section.hidden = !isOn;
+          if (!isOn) section.open = false;
+        });
+      };
+      applyDetail(true);
+      detailSwitch.addEventListener("click", function () {
+        applyDetail(detailSwitch.getAttribute("aria-checked") !== "true");
+      });
+    }
+
+    /* ── opening the analysis promotes the look to full width ───────
+       Twelve attributes don't fit a 17rem column. Opening one expands
+       it across the rail and puts the photo beside the text; only one
+       stays open, so the rail never turns into a wall of specs. */
+    document.querySelectorAll(".look .detected-items-section").forEach(function (panel) {
+      panel.addEventListener("toggle", function () {
+        var card = panel.closest(".look");
+        if (!card) return;
+
+        if (panel.open) {
+          document.querySelectorAll(".look .detected-items-section[open]").forEach(function (other) {
+            if (other !== panel) other.open = false;
+          });
+          card.classList.add("is-open");
+          panel.querySelector("summary").textContent = "Close";
+        } else {
+          card.classList.remove("is-open");
+          panel.querySelector("summary").textContent = "What the AI read";
+        }
+      });
     });
-    if (!res.ok) return alert('Failed to delete outfit');
-    document.querySelector(`[data-outfit-id="${id}"]`)?.remove();
-    if (Array.from(document.querySelectorAll('[data-outfit-id]')).length === 0) location.reload();
-}; 
+
+    /* Colour filtering is a server-side query now — see outfits.my_outfits.
+       Doing it here only ever searched the cards on the current page, so a
+       colour whose looks sat on page 2 reported no matches at all. */
+  });
+})();

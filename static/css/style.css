@@ -1,107 +1,1035 @@
-/* Custom styles for AI Outfit Finder */
+/* ═══════════════════════════════════════════════════════════════════════
+   OutfitGenie — Spectrum design system
 
-/* Smooth transitions */
-.transition-all {
-    transition: all 0.3s ease-in-out;
+   The thesis: this interface has no brand colour. The chrome is a neutral
+   grey card, the surface you judge colour against, and every bit of chroma
+   on screen is pulled from garments the AI has actually read.
+
+   Signal red is reserved for destruction and nothing else. There is no
+   success green.
+
+   Everything structural lives here rather than in Tailwind utilities, so
+   the page is correct before the v4 browser build finishes compiling.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── tokens ──────────────────────────────────────────────────────────
+   Light is the base. Dark redefines only these values, in both the
+   media query and the [data-theme] stamp, so all three viewer states
+   (explicit light, explicit dark, unset/system) resolve as a full set. */
+:root {
+  --ground:    #EDEDEA;
+  --card:      #FFFFFF;
+  --sunk:      #E4E4E0;
+  --ink:       #16171A;
+  --graphite:  #5A5D63;
+  --rule:      #CDCDC8;
+  --rule-soft: #DEDEDA;
+  --signal:    #C8322B;
+  --signal-sunk: #F6E4E2;
+
+  /* Lightness lift applied to wardrobe colours so user data stays legible
+     against the ground. 0 in light, positive in dark. */
+  --lift: 0%;
+  --ring: rgba(22, 23, 26, .22);
+
+  --f-display: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+  --f-voice:   'Newsreader', Georgia, 'Times New Roman', serif;
+  --f-data:    'Martian Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --xs: .6875rem;
+  --sm: .8125rem;
+  --base: .9375rem;
+  --body: 1.0625rem;
+  --lg: 1.25rem;
+  --xl: 1.625rem;
+  --display: clamp(1.75rem, 3.6vw, 2.75rem);
+
+  --gut: clamp(1rem, 3.5vw, 2.5rem);
+  --max: 78rem;
+  --dur: .45s;
+  --ease: cubic-bezier(.2, .8, .2, 1);
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-    width: 8px;
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:    #121316;
+    --card:      #1B1D21;
+    --sunk:      #17191D;
+    --ink:       #EDEDEA;
+    --graphite:  #9A9DA4;
+    --rule:      #2E3138;
+    --rule-soft: #25282D;
+    --signal:    #E0574E;
+    --signal-sunk: #33211F;
+    --lift: 14%;
+    --ring: rgba(237, 237, 234, .28);
+  }
 }
 
-::-webkit-scrollbar-track {
-    background: #f1f1f1;
+:root[data-theme="dark"] {
+  --ground:    #121316;
+  --card:      #1B1D21;
+  --sunk:      #17191D;
+  --ink:       #EDEDEA;
+  --graphite:  #9A9DA4;
+  --rule:      #2E3138;
+  --rule-soft: #25282D;
+  --signal:    #E0574E;
+  --signal-sunk: #33211F;
+  --lift: 14%;
+  --ring: rgba(237, 237, 234, .28);
 }
 
-::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 4px;
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur: .001s; }
+  *, *::before, *::after {
+    animation-duration: .001s !important;
+    transition-duration: .001s !important;
+    scroll-behavior: auto !important;
+  }
 }
 
-::-webkit-scrollbar-thumb:hover {
-    background: #555;
+/* ── base ───────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--f-voice);
+  font-size: var(--body);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  transition: background var(--dur) ease, color var(--dur) ease;
 }
 
-/* Upload area hover effects */
-.border-dashed:hover {
-    border-color: #4f46e5;
-    background-color: #f8fafc;
+img { max-width: 100%; display: block; }
+
+a { color: inherit; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
-/* Button hover effects */
-button {
-    transition: transform 0.2s ease-in-out;
+.shell { max-width: var(--max); margin-inline: auto; padding-inline: var(--gut); }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
 
-button:hover {
-    transform: scale(1.05);
+/* ── type roles ──────────────────────────────────────────────────────
+   Display = Archivo at its widest. Voice = Newsreader, used only for words
+   the AI wrote. Data = Martian Mono, used only for interface chrome. */
+.t-display {
+  font-family: var(--f-display);
+  font-variation-settings: 'wdth' 125, 'wght' 700;
+  text-transform: uppercase;
+  letter-spacing: -.018em;
+  line-height: .95;
+  text-wrap: balance;
+  margin: 0;
 }
 
-/* Card hover effects */
-.shadow-md {
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+.t-data {
+  font-family: var(--f-data);
+  font-variation-settings: 'wdth' 87.5, 'wght' 500;
+  font-size: var(--xs);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
 }
 
-.shadow-md:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+.t-voice {
+  font-family: var(--f-voice);
+  font-size: var(--body);
+  line-height: 1.6;
+  max-width: 62ch;
 }
 
-/* Loading animation */
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
+.t-quiet { color: var(--graphite); }
+
+.eyebrow {
+  display: flex; align-items: center; gap: .7rem;
+  color: var(--graphite); margin: 0 0 .9rem;
+}
+.eyebrow::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+
+/* ── top bar ─────────────────────────────────────────────────────────
+   The spectrum sits inside the header on every page. It is the only
+   persistent colour in the chrome. */
+.topbar {
+  position: sticky; top: 0; z-index: 60;
+  background: var(--ground);
+  border-bottom: 1px solid var(--rule);
 }
 
-.loading {
-    animation: spin 1s linear infinite;
+.topbar-in {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; padding-block: .7rem; flex-wrap: wrap;
 }
 
-/* Custom form styles */
-input[type="number"],
-select {
-    transition: border-color 0.2s ease-in-out;
+.wordmark {
+  font-family: var(--f-display);
+  font-variation-settings: 'wdth' 125, 'wght' 700;
+  font-size: var(--sm);
+  text-transform: uppercase;
+  letter-spacing: .01em;
+  text-decoration: none;
+  white-space: nowrap;
 }
 
-input[type="number"]:focus,
-select:focus {
-    border-color: #4f46e5;
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+.nav { display: flex; align-items: center; gap: .25rem; flex-wrap: wrap; }
+
+.nav-link {
+  font-family: var(--f-data);
+  font-variation-settings: 'wdth' 87.5, 'wght' 400;
+  font-size: var(--xs);
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  text-decoration: none;
+  color: var(--graphite);
+  padding: .4rem .5rem;
+  border-radius: 2px;
+  transition: color .16s ease;
+}
+.nav-link:hover { color: var(--ink); }
+.nav-link.is-current { color: var(--ink); box-shadow: inset 0 -2px 0 var(--ink); }
+
+/* ── the spectrum ────────────────────────────────────────────────────
+   Proportional band of the wardrobe. Segment width is how much of that
+   colour you own. */
+.spectrum {
+  display: flex; width: 100%; gap: 1px;
+  height: var(--band-h, 9px);
+  background: var(--rule-soft);
+  border-radius: 1px; overflow: hidden;
 }
 
-/* Responsive adjustments */
-@media (max-width: 640px) {
-    .grid-cols-3 {
-        grid-template-columns: repeat(1, minmax(0, 1fr));
-    }
+.spectrum.is-empty {
+  background: none;
+  border: 1px dashed var(--rule);
+  border-radius: 2px;
 }
 
-/* Custom animations */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.seg {
+  flex-grow: var(--n, 1); flex-basis: 0; min-width: 0;
+  background: color-mix(in oklab, var(--c, var(--graphite)), #fff var(--lift));
+  transition: flex-grow var(--dur) var(--ease), opacity .2s ease;
+  border: none; padding: 0;
 }
 
-.animate-fade-in {
-    animation: fadeIn 0.5s ease-out;
+.seg.is-loading { flex-grow: 0; }
+
+/* Only interactive where it actually filters (the gallery). */
+button.seg { cursor: pointer; }
+button.seg:hover { opacity: .78; }
+.spectrum.is-filtered .seg { opacity: .3; }
+.spectrum.is-filtered .seg.is-active { opacity: 1; }
+
+.topbar .spectrum { --band-h: 7px; }
+.band-tall { --band-h: 42px; }
+
+.band-note {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 1rem; flex-wrap: wrap; padding-block: .45rem;
 }
 
-/* Custom utility classes */
-.text-gradient {
-    background: linear-gradient(90deg, #4f46e5, #7c3aed);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+/* ── buttons ─────────────────────────────────────────────────────────
+   One base class, three intents. Nothing scales on hover. */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .45rem;
+  font-family: var(--f-data);
+  font-variation-settings: 'wdth' 87.5, 'wght' 500;
+  font-size: var(--xs);
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: .55rem .8rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: border-color .16s ease, background .16s ease, color .16s ease;
+}
+.btn:hover { border-color: var(--ink); }
+.btn:disabled { opacity: .42; cursor: not-allowed; }
+.btn:disabled:hover { border-color: var(--rule); }
+
+.btn-primary { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+.btn-primary:hover { background: var(--graphite); border-color: var(--graphite); }
+
+.btn-ghost { background: none; border-color: transparent; color: var(--graphite); }
+.btn-ghost:hover { color: var(--ink); border-color: var(--rule); }
+
+/* Reserved for destruction. Never decorative. */
+.btn-danger { color: var(--signal); border-color: var(--rule); }
+.btn-danger:hover { border-color: var(--signal); background: var(--signal-sunk); }
+
+.btn-row { display: flex; gap: .45rem; flex-wrap: wrap; align-items: center; }
+
+/* ── surfaces ────────────────────────────────────────────────────────
+   Hairlines and colour separate things. No drop shadows anywhere. */
+.panel {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
 }
 
-.bg-gradient {
-    background: linear-gradient(90deg, #4f46e5, #7c3aed);
-} 
+.panel-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap;
+  padding: .85rem 1rem;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.panel-body { padding: 1rem; }
+
+.section { padding-block: clamp(1.75rem, 4vw, 2.75rem); }
+.section + .section { border-top: 1px solid var(--rule); }
+
+.stack { display: grid; gap: 1rem; }
+.stack-tight { display: grid; gap: .5rem; }
+
+/* ── forms ───────────────────────────────────────────────────────────── */
+.field { display: grid; gap: .35rem; }
+
+.field-label {
+  font-family: var(--f-data);
+  font-variation-settings: 'wdth' 87.5, 'wght' 500;
+  font-size: var(--xs);
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  color: var(--graphite);
+}
+
+.input, .select, .textarea {
+  width: 100%;
+  font-family: var(--f-voice);
+  font-size: var(--base);
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: .55rem .65rem;
+  transition: border-color .16s ease;
+}
+.input:hover, .select:hover, .textarea:hover { border-color: var(--graphite); }
+.input:focus, .select:focus, .textarea:focus {
+  outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px var(--ring);
+}
+.textarea { resize: vertical; min-height: 6rem; }
+
+.input-color {
+  width: 3.25rem; height: 2.35rem; padding: .15rem;
+  border: 1px solid var(--rule); border-radius: 2px;
+  background: var(--card); cursor: pointer;
+}
+
+.field-row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.field-row > .input { flex: 1 1 12rem; }
+
+.grid-fields { display: grid; gap: 1rem; }
+@media (min-width: 40rem) { .grid-fields-2 { grid-template-columns: 1fr 1fr; } }
+
+/* Style choices read as selectable chips, not a column of checkboxes. */
+.choices { display: flex; flex-wrap: wrap; gap: .4rem; }
+
+.choice { position: relative; }
+.choice input {
+  position: absolute; opacity: 0; width: 100%; height: 100%;
+  margin: 0; cursor: pointer;
+}
+.choice span {
+  display: inline-block;
+  font-family: var(--f-data);
+  font-variation-settings: 'wdth' 87.5, 'wght' 400;
+  font-size: var(--xs);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  padding: .45rem .7rem;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  color: var(--graphite);
+  transition: color .16s ease, border-color .16s ease, background .16s ease;
+}
+.choice input:hover + span { border-color: var(--graphite); color: var(--ink); }
+.choice input:checked + span { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+.choice input:focus-visible + span { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* ── disclosure drawer ───────────────────────────────────────────────
+   Profile and analysis detail are secondary. They open, they don't
+   occupy the first screen. */
+.drawer { border: 1px solid var(--rule); border-radius: 3px; background: var(--card); }
+.drawer + .drawer { margin-top: .5rem; }
+
+.drawer > summary {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; cursor: pointer; list-style: none;
+  padding: .8rem 1rem;
+  font-family: var(--f-data);
+  font-variation-settings: 'wdth' 87.5, 'wght' 500;
+  font-size: var(--xs);
+  text-transform: uppercase;
+  letter-spacing: .09em;
+}
+.drawer > summary::-webkit-details-marker { display: none; }
+.drawer > summary::after {
+  content: "+"; color: var(--graphite);
+  font-family: var(--f-data); font-size: var(--sm);
+}
+.drawer[open] > summary { border-bottom: 1px solid var(--rule-soft); }
+.drawer[open] > summary::after { content: "–"; }
+.drawer > summary:hover { color: var(--ink); }
+.drawer-body { padding: 1rem; }
+
+/* ── drop zone ───────────────────────────────────────────────────────
+   The primary act of the upload page, so it gets the space. */
+.dropzone {
+  display: grid; place-items: center; gap: .5rem;
+  text-align: center;
+  padding: clamp(2rem, 6vw, 3.75rem) 1.25rem;
+  border: 1px dashed var(--rule);
+  border-radius: 3px;
+  background: var(--sunk);
+  cursor: pointer;
+  transition: border-color .18s ease, background .18s ease;
+}
+.dropzone:hover { border-color: var(--graphite); }
+.dropzone.is-dragging { border-color: var(--ink); border-style: solid; background: var(--card); }
+
+.dropzone-mark {
+  font-family: var(--f-display);
+  font-variation-settings: 'wdth' 125, 'wght' 700;
+  text-transform: uppercase;
+  font-size: clamp(1.25rem, 3vw, 1.875rem);
+  letter-spacing: -.01em;
+  line-height: 1;
+}
+
+/* ── upload tiles ────────────────────────────────────────────────────── */
+.tiles {
+  display: grid; gap: .6rem;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+}
+
+.tile { position: relative; border: 1px solid var(--rule); border-radius: 3px; overflow: hidden; background: var(--card); }
+.tile img { width: 100%; height: 9rem; object-fit: cover; }
+.tile-name {
+  display: block; padding: .4rem .5rem;
+  font-family: var(--f-data); font-size: .625rem;
+  letter-spacing: .06em; color: var(--graphite);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tile-remove {
+  position: absolute; top: .35rem; right: .35rem;
+  display: grid; place-items: center;
+  width: 1.6rem; height: 1.6rem;
+  background: var(--card); color: var(--signal);
+  border: 1px solid var(--rule); border-radius: 2px;
+  cursor: pointer; padding: 0;
+  transition: border-color .16s ease, background .16s ease;
+}
+.tile-remove:hover { border-color: var(--signal); background: var(--signal-sunk); }
+
+/* ── the collection ──────────────────────────────────────────────────
+   A closet, not a thumbnail grid: looks hang in a row of even height,
+   each carrying its own colourway along the bottom edge. */
+.rail {
+  display: grid; gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  overflow: hidden;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+}
+
+.look {
+  display: flex; flex-direction: column;
+  background: var(--card);
+  position: relative;
+  transition: opacity .2s ease;
+}
+.look.is-dimmed { opacity: .22; }
+
+.look-figure { position: relative; background: var(--sunk); }
+.look-figure img {
+  width: 100%; aspect-ratio: 4 / 5; object-fit: cover;
+  cursor: zoom-in;
+}
+
+.look-pick {
+  position: absolute; top: .5rem; left: .5rem; z-index: 2;
+  width: 1.15rem; height: 1.15rem; margin: 0;
+  accent-color: var(--ink); cursor: pointer;
+}
+
+.look-acts {
+  position: absolute; top: .5rem; right: .5rem; z-index: 2;
+  display: flex; gap: .3rem;
+  opacity: 0; transition: opacity .18s ease;
+}
+.look:hover .look-acts,
+.look:focus-within .look-acts { opacity: 1; }
+@media (hover: none) { .look-acts { opacity: 1; } }
+
+.icon-btn {
+  display: grid; place-items: center;
+  width: 1.85rem; height: 1.85rem; padding: 0;
+  background: var(--card); color: var(--graphite);
+  border: 1px solid var(--rule); border-radius: 2px;
+  cursor: pointer;
+  transition: color .16s ease, border-color .16s ease, background .16s ease;
+}
+.icon-btn:hover { color: var(--ink); border-color: var(--ink); }
+.icon-btn.is-danger:hover { color: var(--signal); border-color: var(--signal); background: var(--signal-sunk); }
+.icon-btn[aria-pressed="true"] { color: var(--ink); border-color: var(--ink); background: var(--sunk); }
+.icon-btn[aria-pressed="true"] svg { fill: currentColor; }
+.icon-btn svg { width: .95rem; height: .95rem; }
+
+/* The colourway: this outfit's own extracted colours, on the cut edge. */
+.look-band { display: flex; height: 5px; gap: 1px; background: var(--rule-soft); transition: height .22s var(--ease); }
+.look:hover .look-band, .look:focus-within .look-band { height: 13px; }
+.look-band i { flex-grow: var(--n, 1); flex-basis: 0; background: color-mix(in oklab, var(--c), #fff var(--lift)); }
+
+.look-body { display: grid; gap: .55rem; padding: .8rem .85rem; flex: 1; align-content: start; }
+
+.look-meta { display: flex; justify-content: space-between; gap: .75rem; align-items: baseline; }
+
+.look-pieces { display: flex; flex-wrap: wrap; gap: .3rem; }
+
+/* ── chips and tags ──────────────────────────────────────────────────── */
+.chip {
+  width: .8rem; height: .8rem; flex: none; border-radius: 2px;
+  background: color-mix(in oklab, var(--c, var(--graphite)), #fff var(--lift));
+  box-shadow: inset 0 0 0 1px rgba(128, 128, 128, .3);
+}
+.chip-lg { width: 1.5rem; height: 1.5rem; border-radius: 2px; }
+
+.piece-tag {
+  display: inline-flex; align-items: center; gap: .35rem;
+  font-family: var(--f-data);
+  font-variation-settings: 'wdth' 87.5, 'wght' 400;
+  font-size: .625rem;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--graphite);
+  border: 1px solid var(--rule-soft);
+  border-radius: 2px;
+  padding: .22rem .4rem;
+  max-width: 100%;
+}
+.piece-tag span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.tag {
+  display: inline-block;
+  font-family: var(--f-data);
+  font-variation-settings: 'wdth' 87.5, 'wght' 400;
+  font-size: .625rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--graphite);
+  border: 1px solid var(--rule-soft);
+  border-radius: 2px;
+  padding: .2rem .4rem;
+}
+
+/* ── the analysis, made scannable ────────────────────────────────────
+   Three tiers: what it is (display + chip), its attributes (aligned mono
+   label / value rows), and the AI's own sentence (serif, because the
+   model wrote it). */
+.pieces { display: grid; gap: 1px; background: var(--rule-soft); }
+
+.piece { background: var(--card); padding: 1rem 1.05rem; display: grid; gap: .7rem; }
+
+.piece-head {
+  display: flex; align-items: center; gap: .6rem;
+  padding-bottom: .6rem;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.piece-type {
+  font-family: var(--f-display);
+  font-variation-settings: 'wdth' 112, 'wght' 650;
+  font-size: 1.0625rem;
+  text-transform: uppercase;
+  letter-spacing: .005em;
+  line-height: 1.2;
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.piece-color {
+  font-family: var(--f-data);
+  font-size: var(--xs);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--graphite);
+  text-align: right;
+}
+
+/* Label column fixed and generous so values start on one line the eye
+   can run down; values in ink, not grey, because they're the content. */
+.spec { display: grid; gap: .45rem .9rem; margin: 0; }
+@media (min-width: 22rem) {
+  .spec { grid-template-columns: 5.75rem minmax(0, 1fr); align-items: baseline; }
+}
+
+.spec dt {
+  font-family: var(--f-data);
+  font-variation-settings: 'wdth' 87.5, 'wght' 500;
+  font-size: var(--xs);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--graphite);
+  line-height: 1.5;
+}
+
+.spec dd {
+  margin: 0;
+  font-family: var(--f-voice);
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+/* The model's own sentence. Serif, because the AI wrote it. */
+.piece-note {
+  font-family: var(--f-voice);
+  font-size: 1rem;
+  line-height: 1.55;
+  font-style: italic;
+  color: var(--graphite);
+  border-left: 2px solid var(--rule);
+  padding-left: .8rem;
+  margin: .1rem 0 0;
+}
+
+/* Raw analysis fallback for outfits saved before structured items existed. */
+.analysis-raw {
+  font-family: var(--f-voice);
+  font-size: var(--base);
+  line-height: 1.55;
+  color: var(--graphite);
+  padding: .75rem .85rem;
+  background: var(--card);
+}
+.analysis-raw strong { color: var(--ink); font-weight: 600; }
+
+/* ── switch ──────────────────────────────────────────────────────────── */
+.switch {
+  display: inline-flex; align-items: center; gap: .5rem;
+  cursor: pointer; background: none; border: none; padding: 0;
+  font-family: var(--f-data);
+  font-variation-settings: 'wdth' 87.5, 'wght' 400;
+  font-size: var(--xs);
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  color: var(--graphite);
+}
+.switch:hover { color: var(--ink); }
+.switch-track {
+  width: 2.1rem; height: 1.15rem; flex: none;
+  border: 1px solid var(--rule); border-radius: 2px;
+  background: var(--sunk); position: relative;
+  transition: background .18s ease, border-color .18s ease;
+}
+.switch-track::after {
+  content: ""; position: absolute; top: 1px; left: 1px;
+  width: .85rem; height: .85rem; border-radius: 1px;
+  background: var(--graphite);
+  transition: transform .18s var(--ease), background .18s ease;
+}
+.switch[aria-checked="true"] .switch-track { border-color: var(--ink); background: var(--ink); }
+.switch[aria-checked="true"] .switch-track::after { transform: translateX(.9rem); background: var(--ground); }
+
+/* ── weather ─────────────────────────────────────────────────────────── */
+.weather {
+  display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;
+  padding: .85rem 1rem;
+}
+.weather-temp {
+  font-family: var(--f-display);
+  font-variation-settings: 'wdth' 125, 'wght' 700;
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.weather-stats { display: flex; gap: 1.1rem; flex-wrap: wrap; }
+.weather-stat { display: grid; gap: .1rem; }
+.weather-stat b {
+  font-family: var(--f-data); font-weight: 400; font-size: var(--sm);
+  font-variant-numeric: tabular-nums;
+}
+.weather img { width: 2.5rem; height: 2.5rem; }
+
+/* ── empty states: an invitation, not an apology ─────────────────────── */
+.empty {
+  display: grid; gap: .6rem; place-items: center; text-align: center;
+  padding: clamp(2rem, 6vw, 3.5rem) 1.25rem;
+  border: 1px dashed var(--rule); border-radius: 3px;
+}
+.empty-title {
+  font-family: var(--f-display);
+  font-variation-settings: 'wdth' 125, 'wght' 700;
+  text-transform: uppercase;
+  font-size: clamp(1.15rem, 2.6vw, 1.5rem);
+  line-height: 1.05;
+  margin: 0;
+}
+
+/* ── pagination ──────────────────────────────────────────────────────── */
+.pager { display: flex; gap: .35rem; justify-content: center; flex-wrap: wrap; padding-top: 1.5rem; }
+.pager-gap { color: var(--graphite); padding: .55rem .3rem; font-family: var(--f-data); font-size: var(--xs); }
+
+/* ── toast ───────────────────────────────────────────────────────────── */
+.toast {
+  position: fixed; left: 50%; bottom: 1.5rem; z-index: 200;
+  transform: translate(-50%, 1rem);
+  display: flex; align-items: center; gap: .6rem;
+  background: var(--ink); color: var(--ground);
+  border-radius: 2px; padding: .6rem .9rem;
+  font-family: var(--f-data);
+  font-variation-settings: 'wdth' 87.5, 'wght' 500;
+  font-size: var(--xs); text-transform: uppercase; letter-spacing: .09em;
+  opacity: 0; pointer-events: none;
+  transition: opacity .22s ease, transform .22s var(--ease);
+  max-width: calc(100vw - 2rem);
+}
+.toast.is-shown { opacity: 1; transform: translate(-50%, 0); }
+.toast.is-error { background: var(--signal); color: #fff; }
+
+/* ── image lightbox ──────────────────────────────────────────────────── */
+.lightbox {
+  position: fixed; inset: 0; z-index: 300;
+  display: none; place-items: center;
+  padding: clamp(1rem, 4vw, 3rem);
+  background: color-mix(in oklab, var(--ground), #000 55%);
+  opacity: 0; transition: opacity .22s ease;
+  cursor: zoom-out;
+}
+.lightbox.is-open { display: grid; }
+.lightbox.is-shown { opacity: 1; }
+.lightbox img {
+  max-width: 100%; max-height: 88vh; object-fit: contain;
+  border: 1px solid var(--rule); cursor: default;
+}
+
+/* ── the stylist ─────────────────────────────────────────────────────
+   No chat bubbles for the AI. Its replies run full measure in serif,
+   unbubbled, like a letter. Yours are small, mono and right-aligned.
+   You can tell at a glance who wrote what. */
+.chat-shell { display: grid; gap: 1rem; align-items: start; }
+@media (min-width: 60rem) {
+  .chat-shell { grid-template-columns: 15rem minmax(0, 1fr); }
+  .chat-rail { position: sticky; top: 5.5rem; }
+}
+
+.chat-rail { display: grid; gap: .5rem; align-content: start; }
+.chat-list { display: grid; gap: 1px; background: var(--rule-soft);
+             border: 1px solid var(--rule); border-radius: 3px; overflow: hidden; }
+
+.chat-item {
+  display: flex; align-items: flex-start; gap: .5rem;
+  background: var(--card); padding: .6rem .7rem;
+  border-left: 2px solid transparent;
+  transition: background .16s ease, border-color .16s ease;
+}
+.chat-item:hover { background: var(--sunk); }
+.chat-item.is-current { border-left-color: var(--ink); background: var(--sunk); }
+.chat-item-open {
+  flex: 1; min-width: 0; text-align: left; display: grid; gap: .15rem;
+  background: none; border: none; padding: 0; cursor: pointer; font: inherit;
+}
+.chat-item-preview {
+  font-family: var(--f-voice); font-size: var(--base); line-height: 1.35;
+  color: var(--ink);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.chat-item-time { font-family: var(--f-data); font-size: .625rem;
+                  letter-spacing: .06em; color: var(--graphite); }
+
+.chat-log {
+  display: grid; gap: 1.4rem; align-content: start;
+  min-height: 22rem; max-height: min(60vh, 34rem);
+  overflow-y: auto; padding: 1.1rem;
+}
+
+.bubble-you {
+  justify-self: end; max-width: min(34ch, 82%);
+  font-family: var(--f-data);
+  font-variation-settings: 'wdth' 87.5, 'wght' 400;
+  font-size: var(--sm); letter-spacing: .03em; line-height: 1.6;
+  color: var(--ink); background: var(--sunk);
+  border: 1px solid var(--rule-soft); border-radius: 3px;
+  padding: .55rem .7rem;
+}
+
+.reply { display: grid; gap: .55rem; max-width: 62ch; }
+.reply-mark { display: flex; align-items: center; gap: .5rem; color: var(--graphite); }
+.reply-mark::after { content: ""; flex: 1; height: 1px; background: var(--rule-soft); }
+.reply-body {
+  font-family: var(--f-voice); font-size: var(--body); line-height: 1.62;
+  color: var(--ink); margin: 0;
+}
+.reply-body ul { margin: .5rem 0 0; padding-left: 1.1rem; display: grid; gap: .3rem; }
+.reply-images { display: flex; flex-wrap: wrap; gap: .45rem; }
+.reply-images img {
+  width: 4.5rem; height: 4.5rem; object-fit: cover; border-radius: 2px;
+  border: 1px solid var(--rule); cursor: zoom-in;
+  transition: border-color .16s ease;
+}
+.reply-images img:hover { border-color: var(--ink); }
+
+.feedback-row { display: flex; gap: .35rem; }
+.feedback-btn {
+  font-family: var(--f-data);
+  font-variation-settings: 'wdth' 87.5, 'wght' 400;
+  font-size: .625rem; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--graphite); background: none;
+  border: 1px solid var(--rule-soft); border-radius: 2px;
+  padding: .25rem .5rem; cursor: pointer;
+  transition: color .16s ease, border-color .16s ease, background .16s ease;
+}
+.feedback-btn:hover { color: var(--ink); border-color: var(--graphite); }
+.feedback-btn[aria-pressed="true"] {
+  background: var(--ink); color: var(--ground); border-color: var(--ink);
+}
+
+.chat-compose { display: flex; gap: .5rem; padding: .85rem 1rem;
+                border-top: 1px solid var(--rule-soft); }
+.chat-compose .input { flex: 1; }
+
+.chat-pager { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
+
+/* ── AI data ─────────────────────────────────────────────────────────
+   A read-only inspection surface: what the model is actually given. */
+.data-grid { display: grid; gap: .75rem; }
+@media (min-width: 46rem) { .data-grid-2 { grid-template-columns: 1fr 1fr; } }
+
+.data-row {
+  display: grid; gap: .1rem .9rem; padding: .5rem 0;
+  border-top: 1px solid var(--rule-soft);
+}
+.data-row:first-child { border-top: none; }
+@media (min-width: 24rem) {
+  .data-row { grid-template-columns: 8.5rem minmax(0, 1fr); align-items: baseline; }
+}
+.data-row dt {
+  font-family: var(--f-data); font-size: var(--xs);
+  text-transform: uppercase; letter-spacing: .08em; color: var(--graphite);
+}
+.data-row dd {
+  margin: 0; font-family: var(--f-voice); font-size: var(--base);
+  line-height: 1.45; color: var(--ink);
+}
+
+.swatch-inline {
+  display: inline-flex; align-items: center; gap: .4rem;
+  font-family: var(--f-data); font-size: var(--xs);
+}
+.swatch-inline i {
+  width: .9rem; height: .9rem; border-radius: 2px; display: inline-block;
+  background: var(--c, var(--graphite));
+  box-shadow: inset 0 0 0 1px rgba(128,128,128,.3);
+}
+
+.record { display: grid; gap: .55rem; background: var(--card);
+          border: 1px solid var(--rule); border-radius: 3px; padding: .9rem 1rem; }
+.record-media { display: flex; gap: .85rem; align-items: flex-start; }
+.record-media img {
+  width: 5rem; height: 5rem; object-fit: cover; border-radius: 2px;
+  border: 1px solid var(--rule); cursor: zoom-in; flex: none;
+}
+.record-analysis {
+  font-family: var(--f-voice); font-size: var(--base); line-height: 1.55;
+  color: var(--ink); min-width: 0;
+}
+.record-analysis strong { font-weight: 600; }
+
+/* Like and dislike are told apart by weight and line, not by hue --
+   colour on this page belongs to garments. */
+.verdict { border-left: 2px solid var(--rule); padding-left: .85rem; }
+.verdict.is-like { border-left-style: solid; border-left-color: var(--ink); }
+.verdict.is-dislike { border-left-style: dashed; border-left-color: var(--graphite); }
+
+/* ── insights ────────────────────────────────────────────────────────
+   Measured numbers, so they're set in the data face and given room. */
+.figures {
+  display: grid; gap: 1px; background: var(--rule);
+  border: 1px solid var(--rule); border-radius: 3px; overflow: hidden;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+}
+.figure { background: var(--card); padding: .9rem 1rem; display: grid; gap: .2rem; }
+.figure-n {
+  font-family: var(--f-display);
+  font-variation-settings: 'wdth' 125, 'wght' 700;
+  font-size: clamp(1.5rem, 3.5vw, 2.25rem);
+  line-height: 1; font-variant-numeric: tabular-nums;
+}
+
+/* Severity reads as line weight, not colour — colour belongs to garments.
+   Only a genuine problem gets the signal red rail. */
+.finding {
+  background: var(--card); border: 1px solid var(--rule); border-radius: 3px;
+  padding: 1rem 1.1rem; display: grid; gap: .5rem;
+  border-left: 3px solid var(--rule);
+}
+.finding.is-high { border-left-color: var(--signal); }
+.finding.is-medium { border-left-color: var(--ink); }
+.finding.is-low { border-left-color: var(--rule); border-left-style: dashed; }
+.finding-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.finding-title {
+  font-family: var(--f-display);
+  font-variation-settings: 'wdth' 112, 'wght' 650;
+  font-size: 1.0625rem; text-transform: uppercase; letter-spacing: .005em;
+  margin: 0;
+}
+
+.rank-row { display: flex; align-items: center; gap: .55rem; }
+.rank-name {
+  font-family: var(--f-voice); font-size: var(--base); color: var(--ink);
+  flex: 1 1 6rem; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rank-bar {
+  flex: 0 0 5rem; height: 5px; background: var(--sunk);
+  border-radius: 1px; overflow: hidden;
+}
+.rank-bar i { display: block; height: 100%; background: var(--ink); }
+.rank-score {
+  font-family: var(--f-data); font-size: var(--xs); color: var(--graphite);
+  font-variant-numeric: tabular-nums; flex: none; min-width: 2.4rem; text-align: right;
+}
+
+/* ── pairings ────────────────────────────────────────────────────────── */
+.pairing-subject {
+  display: flex; align-items: center; gap: .85rem; flex-wrap: wrap;
+  padding: .85rem 1rem; background: var(--card);
+  border: 1px solid var(--rule); border-radius: 3px;
+  margin-bottom: 1rem;
+}
+
+.pair-groups {
+  display: grid; gap: .75rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+}
+
+.pair { display: flex; gap: .7rem; align-items: flex-start; }
+.pair-swatch { display: flex; flex: none; border-radius: 2px; overflow: hidden;
+               box-shadow: inset 0 0 0 1px rgba(128,128,128,.3); }
+.pair-swatch i {
+  width: 1.3rem; height: 2.6rem; display: block;
+  background: color-mix(in oklab, var(--c), #fff var(--lift));
+}
+.pair-body { min-width: 0; display: grid; gap: .15rem; }
+.pair-head { display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap; }
+.pair-reason { font-size: var(--base); color: var(--graphite); margin: 0; line-height: 1.4; }
+
+/* ── forecast ────────────────────────────────────────────────────────── */
+.forecast {
+  display: grid; gap: 1px; background: var(--rule);
+  border: 1px solid var(--rule); border-radius: 3px; overflow: hidden;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+}
+.fc-day { background: var(--card); padding: .85rem .9rem; display: grid; gap: .3rem;
+          align-content: start; }
+.fc-temp {
+  font-family: var(--f-display);
+  font-variation-settings: 'wdth' 125, 'wght' 700;
+  font-size: 1.5rem; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.fc-low { color: var(--graphite); font-size: .875rem; }
+
+/* ── pointer glow ────────────────────────────────────────────────────
+   Ambient warmth, not a flashlight: one wide, very faint wash with no
+   hotspot under the cursor, eased a step behind the pointer by JS so it
+   drifts rather than snaps. The hue comes from the wardrobe's dominant
+   colour, so even the ambient light in the room is the user's data. */
+.glow {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(circle 720px at var(--mx, 50%) var(--my, -40%),
+              color-mix(in oklab, var(--glow-c, var(--graphite)), transparent 88%),
+              color-mix(in oklab, var(--glow-c, var(--graphite)), transparent 94%) 42%,
+              transparent 70%);
+  transition: opacity .6s ease;
+}
+/* No pointer to follow, no glow. */
+@media (hover: none) { .glow { display: none; } }
+@media (prefers-reduced-motion: reduce) { .glow { display: none; } }
+
+/* Content sits above the wash. */
+.topbar, main, .foot { position: relative; z-index: 1; }
+
+/* ── hover sheen ─────────────────────────────────────────────────────
+   A surface lifts very slightly toward the cursor while it's over it.
+   Ink-tinted, so it reads in both themes without introducing a hue. */
+.sheen { position: relative; }
+.sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(200px circle at var(--px, 50%) var(--py, 50%),
+              color-mix(in oklab, var(--ink), transparent 93%), transparent 68%);
+  opacity: 0;
+  transition: opacity .28s ease;
+}
+.sheen:hover::after,
+.sheen:focus-within::after { opacity: 1; }
+@media (hover: none) { .sheen::after { display: none; } }
+
+/* ── the analysis, opened ────────────────────────────────────────────
+   Reading twelve attributes in a 17rem column is the problem. Opening
+   "What the AI read" promotes that look to the full width of the rail
+   and puts the photo beside the text, so the spec rows get real room. */
+.look.is-open { grid-column: 1 / -1; }
+
+@media (min-width: 56rem) {
+  .look.is-open {
+    display: grid;
+    grid-template-columns: 20rem minmax(0, 1fr);
+    align-items: start;
+  }
+  .look.is-open .look-media { position: sticky; top: 5.5rem; }
+  .look.is-open .look-body { padding: 1.1rem 1.25rem; }
+  .look.is-open .pieces {
+    grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+  }
+}
+.look.is-open .look-band { height: 13px; }
+.look.is-open .look-figure img { aspect-ratio: auto; max-height: 26rem; }
+
+/* ── footer ──────────────────────────────────────────────────────────── */
+.foot {
+  border-top: 1px solid var(--rule);
+  padding-block: 1.5rem 2.5rem;
+  color: var(--graphite);
+}
+.foot-in { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; align-items: center; }
+.foot a { display: inline-flex; align-items: center; gap: .35rem; text-decoration: none; }
+.foot a:hover { color: var(--ink); }
+.foot svg { width: 1rem; height: 1rem; }
+
+/* Spectrum segments are links now that filtering is server-side. The
+   long-tail rollup is not a colour, so it isn't offered as one. */
+a.seg { display: block; text-decoration: none; cursor: pointer; }
+a.seg:hover { opacity: .78; }
+.seg.is-other {
+  cursor: default;
+  background-image: repeating-linear-gradient(45deg,
+    rgba(255,255,255,.18) 0 3px, transparent 3px 6px);
+}
+.spectrum.is-filtered .seg { opacity: .28; }
+.spectrum.is-filtered .seg.is-active { opacity: 1; }
+.spectrum.is-filtered .seg.is-other { opacity: .28; }
